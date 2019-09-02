@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title><![CDATA[论文阅读笔记:《xxxxx》]]></title>
+    <url>%2F2019%2F09%2F02%2F%E8%AE%BA%E6%96%87%E9%98%85%E8%AF%BB%E7%AC%94%E8%AE%B0-%E3%80%8Axxxxx%E3%80%8B%2F</url>
+    <content type="text"><![CDATA[123456]]></content>
+      <categories>
+        <category>PaperNotes</category>
+      </categories>
+      <tags>
+        <tag>NLP</tag>
+        <tag>Text Generation</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[2018年暑期（05.21-08.10）实习总结]]></title>
+    <url>%2F2018%2F09%2F03%2F2018%E5%B9%B4%E6%9A%91%E6%9C%9F%EF%BC%8805.21-08.10%EF%BC%89%E5%AE%9E%E4%B9%A0%E6%80%BB%E7%BB%93%2F</url>
+    <content type="text"><![CDATA[前言在结束了如过山车一般刺激的研究生复试和双选之后，2018年的夏天非常幸运地得到了人生的第一个实习offer——自然语言处理工程师，在经过老师的批准后，我便满怀期待地开始了人生的第一份实习工作。 这篇文章主要总结一下实习期间收获的学习方面的东西。 实习内容最初Leader给了我入门学习的方向，目标是经过阅读一定量的论文，大致了解命名实体识别（NER, Named-Entity Recognition）和关系抽取（RE, Relation Extraction）。 在经过搜索与向小伙伴求助之后，我便从两篇博文入手作为论文阅读指南：神经网络结构在命名实体识别（NER）中的应用. 和 实体关系抽取 (entity relation extraction)文献阅读总结. （注：这里要特别感谢NLP学习小组的优秀同学Chenhao Wang的帮助，而且非常幸运，他现在已顺利保研到与我同一课题组） 一开始对着全英文的论文有些不知所措，不过硬着头皮看完几篇之后，慢慢就习惯了阅读英文论文，也初步探索出了阅读论文的姿势。为了更深入地了解序列模型的工作流程，我在Github上找了用于命名实体识别的BiLSTM+CRF的开源实现，了解了预训练的 word2vector 和 GloVe 的基本使用。后来leader给了我新的数据来训练和测试，用word vector和character vector混合的方式，还用上了position embedding，F1大概在70%。（可惜这一段时间稍微久远很多都遗忘了，就写这些吧。） 后来的工作内容就是把一本英文的html格式的《默克诊疗手册》按照“一级标题—二级标题—段落”的json格式提取出结构化文本，再用一个无监督的OpenIE信息抽取工具处理正文的句子，这个工具对每个句子的处理结果是句子中的（实体1，关系，实体2）或者是（主语，谓语，宾语（，T:时间状语，L:地点状语））多个三元组，对每个三元组结果还有一个值为0~1的评分。最后把处理的结果加入json结构中。这个项目遇到了很多问题，OpenIE这个开源工具是用scala实现的，其中还需要存储在Googlecloud上的languageModel和额外的jar文件，一共有20多GB，拜托在台湾的同事墙外下载这些东西就花了两天的时间，后来编译整个项目时也遇到了数不尽的坑，而且编译一次就需要花4个多小时，所以把这个项目构建起来就花费了一周多的时间，期间得到了Alice和Owen两位伙伴的很多帮助。不过作为实习生，任务量不算大，编译项目的时候我就看看论文和教程之类的充实自己。 最后一个项目是用强化学习训练一个中医的自动问诊系统。leader给我讲了几遍这个项目的整体思路我才逐渐理解了，用一句话描述就是“利用强化学习的Policy Gradient方法，训练一个自动问诊系统，使得该问诊系统能够根据已经得知的User的症状选择最佳提问策略尽早得出可靠诊断，使得总提问轮次最少。”。一开始关于强化学习也就只看了一点OpenAI的入门教程Deep Reinforcement Learning Course with Tensorflow，后来看了策略梯度Policy Gradient的知识，参考了网上的许多文章还有一本入门书——Sutton的《Reinforcement Learning - An Introduction》，还有Sergey Levine的CS 294-112: Deep Reinforcement Learning的Policy Gradient课件。理解强化学习的训练过程，并针对具体业务逐步建模，一点点体会强化学习的神奇之处，这个过程是非常新鲜非常精彩的。 现在开始简要描述一下这个项目。QA系统每次会根据当前状态State选择两种action提问策略向User提问一个症状，User的回答有三个选择Yes/No/Ignore，根据User的回答更新当前状态State，不断提问直到state达到某个药方的满足条件。将状态State定义为N维的三值（-1,0,1）向量，N为症状即问题的总数，每个元素的初始状态0表示Ignore忽略该问题，1表示回答Yes，-1表示回答No，所以State就是QA已知的User的症状。两种提问策略就是deep和wide两种提问策略，deep策略选择局部影响最大的症状来提问，wide策略选择全局影响最大的症状来提问，两位开发QA底层系统的伙伴对两种策略是否明显区分进行了深入讨论。对每个症状问题的回答，有一个概率分布，我们需要自动生成训练样本，所以根据回答的概率分布随机得出回答。 这个根据状态选择策略很自然地就用到策略梯度方法，策略梯度方法有一个Policy Network，网络输入State向量，输出antion的概率分布π(a|s)，对我们这个问题就是输出两种选择策略的概率分布。Policy Network的目标函数融合了决策概率和奖励，目标就是寻找网络参数θ，使得action轨迹的奖励期望最大。所以这个项目的难点是reward的设定，因为这个QA过程只有在问诊结束时才能回过头来计算每一次antion的reward，是Delayed reward，我很自然想出一个1/((end-cur)*end)样子的式子，即总步数end越小，action轨迹的整体奖励越大，提出某个问题使得诊断结束越早（end-cur越小），提出该问题的action的奖励越大，实验表明这个奖励设计效果良好。项目的具体实现中，我参考了OpenAI gym模块的思想，还有其中与本项目类似的CartPole环境，自己设定env类，env.step()等函数。一个个函数的实现、测试，一步一步构建起整个项目，当最后终于看到这个人工智障自动问诊系统开始自我学习训练时，心情是无比激动的。 实习期间还接触了许多新技术，比如git, docker等，nice的同事很耐心地跟我讲解，还需要有意识地多多使用。 反思总结随着知识量的增长和思维的发散，越来越意识到原来关注的东西只是冰山一角，站在圆的边缘更加感到知识的浩瀚和自己的无知。这段时间初步体验了对知识的“祛魅”和“祛昧”，需要思考如何继续保持专注和探索的热情，以及辨别信息的质量，如何在繁杂的信息之中不迷失自我。]]></content>
+      <categories>
+        <category>学习总结</category>
+      </categories>
+      <tags>
+        <tag>NLP</tag>
+        <tag>命名实体识别</tag>
+        <tag>关系抽取</tag>
+        <tag>强化学习</tag>
+        <tag>Policy Gradient</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title><![CDATA[markdown & hexo 操作]]></title>
+    <url>%2F2018%2F06%2F09%2Fmarkdown-hexo-%E6%93%8D%E4%BD%9C%2F</url>
+    <content type="text"><![CDATA[一级标题二级标题三级标题四级标题五级标题六级标题 阅读全文1&lt;!--more--&gt; 1&lt;center&gt;居中&lt;/center&gt; 居中的句子 1234## 列表- 文本1- 文本2- 文本3 列表 文本1 文本2 文本3 123## 有序列表1. text 12. text 2 有序列表 text 1 text 2 1123\. aaa 123. aaa 123[链接1](http://cn.bing.com)![picture.jpg](https://upload-images.jianshu.io/upload_images/4763374-48157acd8d2b7c39.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240) 链接1 1234## 引用&gt; 这是一块引用区 ...,&gt;&gt;aaaaa 引用 这是一块引用区 …, aaaaa 123## 斜体/粗体 *aaaa* **aaaa** 用于强调*用于强调* **用于强调** 斜体/粗体 aaaa aaaa 用于强调用于强调用于强调 12## 代码引用 (~键下面的符号)`hello world!!!!` 多段代码12import xxxxxprint("hhhhh") 或者1234这是一个普通段落： import qqq hehehehe 这是一个普通段落： import qqq hehehehe 123## 分隔线- - -*** 123456789101112131415## 多链接I get 10 times more traffic from [Google] [1] than from[Yahoo] [2] or [MSN] [3]. [1]: http://google.com/ "Google" [2]: http://search.yahoo.com/ "Yahoo Search" [3]: http://search.msn.com/ "MSN Search"I get 10 times more traffic from [Google][] than from[Yahoo][] or [MSN][]. [google]: http://google.com/ "Google" [yahoo]: http://search.yahoo.com/ "Yahoo Search" [msn]: http://search.msn.com/ "MSN Search" 多链接I get 10 times more traffic from Google than fromYahoo or MSN. I get 10 times more traffic from Google than fromYahoo or MSN. hexo常用操作1234567891011121314151617hexo new "postName" #新建文章hexo new page "pageName" #新建页面hexo generate #生成静态页面至public目录hexo server #开启预览访问端口（默认端口4000，'ctrl + c'关闭server）hexo deploy #部署到GitHubhexo help # 查看帮助hexo version #查看Hexo的版本hexo n == hexo newhexo g == hexo generatehexo s == hexo serverhexo d == hexo deployhexo s -g #生成并本地预览hexo d -g #生成并上传hexo s -p 5000 -g #生成并本地localhost:5000 预览]]></content>
+      <categories>
+        <category>Skill</category>
+      </categories>
+      <tags>
+        <tag>markdown</tag>
+        <tag>hexo</tag>
+      </tags>
+  </entry>
+</search>
