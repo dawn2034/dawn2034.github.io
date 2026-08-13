@@ -1,0 +1,11 @@
+@import url('/css/dailyepoch-base.css');
+
+/* Markdown files already contain their own H1 title. Hide the duplicate layout copy. */
+.dailyepoch-shell .post-body > h1:first-child {
+  display: none;
+}
+
+.dailyepoch-shell .back-to-top {
+  border: 0;
+  cursor: pointer;
+}
