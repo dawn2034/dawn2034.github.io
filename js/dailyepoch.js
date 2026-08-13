@@ -129,6 +129,59 @@
     });
   }
 
+  function installTocScrollSpy() {
+    var headings = Array.prototype.slice.call(document.querySelectorAll('.post-body h2[id]'));
+    var links = Array.prototype.slice.call(document.querySelectorAll('.dailyepoch-toc-link[href^="#"]'));
+    if (!headings.length || !links.length) return;
+
+    var activeId = '';
+    var scheduled = false;
+
+    links.forEach(function (link) {
+      link.addEventListener('click', function () {
+        var mobileToc = link.closest('.dailyepoch-mobile-toc');
+        if (mobileToc) mobileToc.open = false;
+      });
+    });
+
+    function setActive(id) {
+      if (!id || id === activeId) return;
+      activeId = id;
+      links.forEach(function (link) {
+        var isActive = link.getAttribute('href') === '#' + id;
+        link.classList.toggle('is-active', isActive);
+        if (isActive) link.setAttribute('aria-current', 'location');
+        else link.removeAttribute('aria-current');
+      });
+    }
+
+    function updateActiveSection() {
+      scheduled = false;
+      var probe = window.scrollY + Math.min(160, Math.max(90, window.innerHeight * 0.18));
+      var current = headings[0];
+
+      headings.forEach(function (heading) {
+        if (heading.offsetTop <= probe) current = heading;
+      });
+
+      if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4) {
+        current = headings[headings.length - 1];
+      }
+      setActive(current.id);
+    }
+
+    function scheduleUpdate() {
+      if (scheduled) return;
+      scheduled = true;
+      window.requestAnimationFrame(updateActiveSection);
+    }
+
+    window.addEventListener('scroll', scheduleUpdate, { passive: true });
+    window.addEventListener('resize', scheduleUpdate, { passive: true });
+    window.addEventListener('hashchange', scheduleUpdate);
+    updateActiveSection();
+  }
+
   function boot() {
     refreshMetadata();
     ensureDailyEpochMenu();
@@ -138,6 +191,7 @@
     installCopyButtons();
     installBackToTop();
     installMobileMenu();
+    installTocScrollSpy();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
