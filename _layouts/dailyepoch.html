@@ -1,8 +1,3 @@
-{% assign dailyepoch_h2_parts = content | split: '<h2 id="' %}
-{% assign dailyepoch_has_toc = false %}
-{% if dailyepoch_h2_parts.size > 1 %}
-  {% assign dailyepoch_has_toc = true %}
-{% endif %}
 <!DOCTYPE html>
 <html class="theme-next gemini" lang="zh-Hans">
 <head>
@@ -94,22 +89,6 @@
                 </header>
 
                 <div class="post-body" itemprop="articleBody">
-                  {% if dailyepoch_has_toc %}
-                  <details class="dailyepoch-mobile-toc">
-                    <summary>本文目录</summary>
-                    <ol class="dailyepoch-toc-list">
-                      {% for dailyepoch_part in dailyepoch_h2_parts offset:1 %}
-                        {% assign dailyepoch_id = dailyepoch_part | split: '"' | first %}
-                        {% assign dailyepoch_heading_parts = dailyepoch_part | split: '">' %}
-                        {% assign dailyepoch_heading_tail = dailyepoch_heading_parts[1] %}
-                        {% assign dailyepoch_title = dailyepoch_heading_tail | split: '</h2>' | first | strip_html | strip %}
-                        {% if dailyepoch_title != '' %}
-                        <li class="dailyepoch-toc-item dailyepoch-toc-h2"><a class="dailyepoch-toc-link" href="#{{ dailyepoch_id }}">{{ dailyepoch_title }}</a></li>
-                        {% endif %}
-                      {% endfor %}
-                    </ol>
-                  </details>
-                  {% endif %}
                   {{ content }}
                 </div>
 
@@ -145,23 +124,6 @@
                 <span class="links-of-author-item"><a href="https://github.com/dawn2034" title="GitHub" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a></span>
               </div>
             </section>
-
-            {% if dailyepoch_has_toc %}
-            <nav class="dailyepoch-toc" aria-label="本文目录">
-              <div class="dailyepoch-toc-title">本文目录</div>
-              <ol class="dailyepoch-toc-list">
-                {% for dailyepoch_part in dailyepoch_h2_parts offset:1 %}
-                  {% assign dailyepoch_id = dailyepoch_part | split: '"' | first %}
-                  {% assign dailyepoch_heading_parts = dailyepoch_part | split: '">' %}
-                  {% assign dailyepoch_heading_tail = dailyepoch_heading_parts[1] %}
-                  {% assign dailyepoch_title = dailyepoch_heading_tail | split: '</h2>' | first | strip_html | strip %}
-                  {% if dailyepoch_title != '' %}
-                  <li class="dailyepoch-toc-item dailyepoch-toc-h2"><a class="dailyepoch-toc-link" href="#{{ dailyepoch_id }}">{{ dailyepoch_title }}</a></li>
-                  {% endif %}
-                {% endfor %}
-              </ol>
-            </nav>
-            {% endif %}
           </div>
         </aside>
       </div>
