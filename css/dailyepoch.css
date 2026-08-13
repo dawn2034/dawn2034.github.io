@@ -86,17 +86,20 @@ html {
   border-bottom: 1px solid var(--de-border);
   font-size: 1.48em;
   letter-spacing: .01em;
+  scroll-margin-top: 24px;
 }
 
 .dailyepoch-shell .post-body h3 {
   margin-top: 1.8em;
   font-size: 1.18em;
   color: #3f4650;
+  scroll-margin-top: 24px;
 }
 
 .dailyepoch-shell .post-body h4 {
   margin-top: 1.55em;
   color: #4f5661;
+  scroll-margin-top: 24px;
 }
 
 .dailyepoch-shell .post-body p {
@@ -175,6 +178,14 @@ html {
   background: #f7faff;
 }
 
+.dailyepoch-toc-link.is-active,
+.dailyepoch-toc-link[aria-current='location'] {
+  color: var(--de-accent);
+  border-left-color: var(--de-accent);
+  background: #f1f7ff;
+  font-weight: 700;
+}
+
 /* Mobile/tablet: replace the hidden desktop sidebar with a collapsible in-article TOC. */
 .dailyepoch-mobile-toc {
   display: none;
@@ -210,6 +221,17 @@ html {
 .dailyepoch-shell .back-to-top {
   border: 0;
   cursor: pointer;
+}
+
+/* The original NexT header is a second fixed left card. Keep only the article sidebar on desktop. */
+@media (min-width: 992px) {
+  .dailyepoch-shell > .header {
+    display: none;
+  }
+
+  .dailyepoch-shell .main {
+    padding-top: 32px;
+  }
 }
 
 @media (max-width: 991px) {
