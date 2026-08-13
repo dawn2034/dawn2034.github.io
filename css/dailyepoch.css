@@ -1,11 +1,274 @@
 @import url('/css/dailyepoch-base.css');
 
+html {
+  scroll-behavior: smooth;
+}
+
 /* Markdown files already contain their own H1 title. Hide the duplicate layout copy. */
 .dailyepoch-shell .post-body > h1:first-child {
   display: none;
 }
 
+/* Give long-form DailyEpoch posts a wider reading canvas and a real desktop sidebar. */
+.dailyepoch-shell .main-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  width: calc(100% - 48px);
+  max-width: 1180px;
+}
+
+.dailyepoch-shell .content-wrap {
+  float: none;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.dailyepoch-shell .sidebar {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  float: none;
+  order: -1;
+  flex: 0 0 240px;
+  width: 240px;
+  margin: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dailyepoch-shell .sidebar-inner {
+  box-sizing: border-box;
+  width: 240px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  position: sticky;
+  top: 20px;
+  padding: 20px 16px;
+  border-radius: 8px;
+  opacity: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #d8dee8 transparent;
+}
+
+.dailyepoch-shell .sidebar-inner::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dailyepoch-shell .sidebar-inner::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #d8dee8;
+}
+
+.dailyepoch-shell .site-overview {
+  text-align: left;
+}
+
+/* Treat the opening paragraph as a compact executive summary without changing Markdown. */
+.dailyepoch-shell .post-body > h1:first-child + p {
+  margin: 0 0 30px;
+  padding: 16px 18px;
+  border: 1px solid #dce9fb;
+  border-left: 4px solid var(--de-accent);
+  border-radius: 6px;
+  background: #f7faff;
+  color: #4f5968;
+  line-height: 1.8;
+}
+
+.dailyepoch-shell .post-body h2 {
+  margin-top: 2.35em;
+  padding-bottom: .52em;
+  border-bottom: 1px solid var(--de-border);
+  font-size: 1.48em;
+  letter-spacing: .01em;
+}
+
+.dailyepoch-shell .post-body h3 {
+  margin-top: 1.8em;
+  font-size: 1.18em;
+  color: #3f4650;
+}
+
+.dailyepoch-shell .post-body h4 {
+  margin-top: 1.55em;
+  color: #4f5661;
+}
+
+.dailyepoch-shell .post-body p {
+  margin-bottom: 1.15em;
+}
+
+.dailyepoch-shell .post-body li {
+  margin: .34em 0;
+}
+
+.dailyepoch-shell .post-body > hr {
+  height: 1px;
+  margin: 46px 0 34px;
+  border: 0;
+  background: var(--de-border);
+  background-image: none;
+}
+
+.dailyepoch-shell .post-body strong {
+  color: #222b35;
+}
+
+.dailyepoch-shell .post-body mjx-container[display='true'] {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: .18em 0 .3em;
+}
+
+/* Desktop article table of contents. H3 items expand only for the current H2 section. */
+.dailyepoch-toc {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--de-border);
+  text-align: left;
+}
+
+.dailyepoch-toc-title {
+  margin: 0 0 10px;
+  color: #444c57;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.dailyepoch-toc-list,
+.dailyepoch-toc-children {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dailyepoch-toc-item {
+  margin: 0;
+}
+
+.dailyepoch-toc-link {
+  display: block;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 0;
+  border-left: 2px solid transparent;
+  color: #7a838f;
+  font-size: 13px;
+  line-height: 1.45;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.dailyepoch-toc-link:hover {
+  color: var(--de-accent);
+  border-bottom: 0;
+  background: #f7faff;
+}
+
+.dailyepoch-toc-link.is-active {
+  color: var(--de-accent);
+  border-left-color: var(--de-accent);
+  background: #f3f8ff;
+  font-weight: 600;
+}
+
+.dailyepoch-toc-children {
+  display: none;
+  margin: 2px 0 5px 10px;
+}
+
+.dailyepoch-toc-item.is-current-section > .dailyepoch-toc-children,
+.dailyepoch-toc-item:focus-within > .dailyepoch-toc-children {
+  display: block;
+}
+
+.dailyepoch-toc-children .dailyepoch-toc-link {
+  padding-top: 4px;
+  padding-bottom: 4px;
+  color: #9aa2ad;
+  font-size: 12px;
+}
+
+.dailyepoch-toc-children .dailyepoch-toc-link.is-active {
+  color: var(--de-accent);
+}
+
+/* Mobile/tablet: replace the hidden desktop sidebar with a collapsible in-article TOC. */
+.dailyepoch-mobile-toc {
+  display: none;
+  margin: 0 0 30px;
+  border: 1px solid var(--de-border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.dailyepoch-mobile-toc summary {
+  padding: 12px 14px;
+  color: #444c57;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dailyepoch-mobile-toc[open] summary {
+  border-bottom: 1px solid var(--de-border);
+}
+
+.dailyepoch-mobile-toc .dailyepoch-toc-list {
+  max-height: 56vh;
+  overflow-y: auto;
+  padding: 8px 10px 12px;
+}
+
+.dailyepoch-mobile-toc .dailyepoch-toc-children {
+  display: block;
+  margin-left: 10px;
+}
+
 .dailyepoch-shell .back-to-top {
   border: 0;
   cursor: pointer;
+}
+
+@media (max-width: 991px) {
+  .dailyepoch-shell .main-inner {
+    display: block;
+    width: calc(100% - 28px);
+    max-width: none;
+  }
+
+  .dailyepoch-shell .content-wrap {
+    width: 100%;
+  }
+
+  .dailyepoch-shell .sidebar {
+    display: none;
+  }
+
+  .dailyepoch-mobile-toc {
+    display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .dailyepoch-shell .post-body > h1:first-child + p {
+    padding: 13px 14px;
+    margin-bottom: 22px;
+  }
+
+  .dailyepoch-shell .post-body h2 {
+    margin-top: 2.05em;
+    font-size: 1.38em;
+  }
+
+  .dailyepoch-shell .post-body h3 {
+    font-size: 1.15em;
+  }
 }
