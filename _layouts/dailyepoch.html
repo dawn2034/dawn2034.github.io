@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html class="theme-next gemini" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="theme-color" content="#222">
+  <title>{{ page.title | default: site.title | escape }} | {{ site.title | escape }}</title>
+  <meta name="description" content="{{ page.description | default: site.description | strip_html | normalize_whitespace | escape }}">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ page.title | default: site.title | escape }}">
+  <meta property="og:description" content="{{ page.description | default: site.description | strip_html | normalize_whitespace | escape }}">
+  <meta property="og:url" content="{{ page.url | absolute_url }}">
+  <meta property="og:site_name" content="{{ site.title | escape }}">
+  <meta property="og:locale" content="zh_Hans_CN">
+  <meta name="twitter:card" content="summary">
+  <link rel="canonical" href="{{ page.url | absolute_url }}">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/header.jpg">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/header.jpg">
+  <link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dailyepoch.css">
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+  <div class="container sidebar-position-left page-post-detail dailyepoch-shell">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner">
+        <div class="site-brand-wrapper">
+          <div class="site-meta">
+            <div class="custom-logo-site-title">
+              <a href="/" class="brand" rel="start">
+                <span class="logo-line-before"><i></i></span>
+                <span class="site-title">{{ site.title | escape }}</span>
+                <span class="logo-line-after"><i></i></span>
+              </a>
+            </div>
+            <p class="site-subtitle">The wind blows endlessly...</p>
+          </div>
+          <div class="site-nav-toggle">
+            <button type="button" aria-label="切换导航">
+              <span class="btn-bar"></span><span class="btn-bar"></span><span class="btn-bar"></span>
+            </button>
+          </div>
+        </div>
+
+        <nav class="site-nav" aria-label="主导航">
+          <ul id="menu" class="menu">
+            <li class="menu-item menu-item-home"><a href="/"><i class="menu-item-icon fa fa-fw fa-home"></i><br>首页</a></li>
+            <li class="menu-item menu-item-dailyepoch menu-item-active"><a href="/DailyEpoch/"><i class="menu-item-icon fa fa-fw fa-newspaper-o"></i><br>DailyEpoch</a></li>
+            <li class="menu-item menu-item-about"><a href="/about/"><i class="menu-item-icon fa fa-fw fa-user"></i><br>关于</a></li>
+            <li class="menu-item menu-item-tags"><a href="/tags/"><i class="menu-item-icon fa fa-fw fa-tags"></i><br>标签</a></li>
+            <li class="menu-item menu-item-archives"><a href="/archives/"><i class="menu-item-icon fa fa-fw fa-archive"></i><br>归档</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+              <div class="post-block">
+                <link itemprop="mainEntityOfPage" href="{{ page.url | absolute_url }}">
+                <header class="post-header">
+                  <h1 class="post-title" itemprop="name headline">{{ page.title | escape }}</h1>
+                  <div class="post-meta">
+                    {% if page.date %}
+                    <span class="post-time">
+                      <span class="post-meta-item-icon"><i class="fa fa-calendar-o"></i></span>
+                      <time itemprop="dateCreated datePublished" datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: "%Y-%m-%d" }}</time>
+                    </span>
+                    {% endif %}
+                    <span class="post-category">
+                      <span class="post-meta-divider">|</span>
+                      <span class="post-meta-item-icon"><i class="fa fa-folder-o"></i></span>
+                      <a href="/DailyEpoch/">DailyEpoch</a>
+                    </span>
+                  </div>
+                </header>
+
+                <div class="post-body" itemprop="articleBody">
+                  {{ content }}
+                </div>
+
+                <footer class="post-footer dailyepoch-footer-nav">
+                  <a class="dailyepoch-back" href="/DailyEpoch/"><i class="fa fa-list"></i> 返回日报索引</a>
+                  <a class="dailyepoch-home" href="/"><i class="fa fa-home"></i> 返回博客首页</a>
+                </footer>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="sidebar">
+          <div class="sidebar-inner">
+            <section class="site-overview">
+              <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+                <img class="site-author-image" itemprop="image" src="/upload/image/avatar.png" alt="鸣响的杯子">
+                <p class="site-author-name" itemprop="name">鸣响的杯子</p>
+                <p class="site-description motion-element">你须是鸣响的杯子，在鸣响时破碎</p>
+              </div>
+              <nav class="site-state motion-element">
+                <div class="site-state-item site-state-posts">
+                  <a href="/DailyEpoch/"><span class="site-state-item-count">31+</span><span class="site-state-item-name">AI 日报</span></a>
+                </div>
+                <div class="site-state-item site-state-categories">
+                  <a href="/categories/"><span class="site-state-item-count">4</span><span class="site-state-item-name">分类</span></a>
+                </div>
+                <div class="site-state-item site-state-tags">
+                  <a href="/tags/"><span class="site-state-item-count">AI</span><span class="site-state-item-name">主题</span></a>
+                </div>
+              </nav>
+              <div class="links-of-author motion-element">
+                <span class="links-of-author-item"><a href="https://github.com/dawn2034" title="GitHub" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a></span>
+              </div>
+            </section>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span data-current-year>{{ 'now' | date: "%Y" }}</span>
+          <span class="with-love"><i class="fa fa-user"></i></span>
+          <span class="author">鸣响的杯子</span>
+        </div>
+      </div>
+    </footer>
+
+    <button class="back-to-top" type="button" aria-label="返回顶部"><i class="fa fa-arrow-up"></i></button>
+  </div>
+
+  <script src="/lib/jquery/index.js?v=2.1.3"></script>
+  <script src="/js/dailyepoch.js"></script>
+</body>
+</html>

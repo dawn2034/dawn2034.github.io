@@ -1,0 +1,341 @@
+/* DailyEpoch integration and site refresh */
+:root {
+  --de-accent: #2f80ed;
+  --de-accent-soft: #eef5ff;
+  --de-border: #e8e8e8;
+  --de-text-muted: #777;
+  --de-card-bg: #fff;
+  --de-code-bg: #f6f8fa;
+}
+
+.dailyepoch-shell .content-wrap {
+  width: calc(100% - 260px);
+}
+
+.dailyepoch-shell .post-block,
+.site-refresh-card {
+  background: var(--de-card-bg);
+  border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .05);
+}
+
+.dailyepoch-shell .post-body {
+  font-size: 16px;
+  line-height: 1.85;
+  color: #333;
+  overflow-wrap: anywhere;
+}
+
+.dailyepoch-shell .post-body h1,
+.dailyepoch-shell .post-body h2,
+.dailyepoch-shell .post-body h3,
+.dailyepoch-shell .post-body h4 {
+  scroll-margin-top: 24px;
+  line-height: 1.35;
+}
+
+.dailyepoch-shell .post-body h1 {
+  margin-top: 2.2em;
+  padding-bottom: .35em;
+  border-bottom: 1px solid var(--de-border);
+  font-size: 1.8em;
+}
+
+.dailyepoch-shell .post-body h2 {
+  margin-top: 2em;
+  font-size: 1.5em;
+}
+
+.dailyepoch-shell .post-body h3 {
+  margin-top: 1.7em;
+  font-size: 1.25em;
+}
+
+.dailyepoch-shell .post-body a {
+  color: var(--de-accent);
+  border-bottom-color: rgba(47, 128, 237, .35);
+}
+
+.dailyepoch-shell .post-body blockquote {
+  margin: 1.4em 0;
+  padding: .8em 1.2em;
+  border-left: 4px solid var(--de-accent);
+  background: var(--de-accent-soft);
+  color: #444;
+}
+
+.dailyepoch-shell .post-body pre {
+  position: relative;
+  margin: 1.4em 0;
+  padding: 1.2em;
+  overflow: auto;
+  border-radius: 6px;
+  background: #1f2329;
+  color: #e6edf3;
+  line-height: 1.55;
+}
+
+.dailyepoch-shell .post-body code {
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.dailyepoch-shell .post-body :not(pre) > code {
+  padding: .15em .35em;
+  border-radius: 4px;
+  background: var(--de-code-bg);
+  color: #c7254e;
+}
+
+.dailyepoch-shell .post-body table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.dailyepoch-shell .post-body th,
+.dailyepoch-shell .post-body td {
+  padding: .55em .8em;
+  border: 1px solid #ddd;
+}
+
+.dailyepoch-shell .post-body th {
+  background: #f5f5f5;
+}
+
+.dailyepoch-shell .post-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.dailyepoch-footer-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--de-border);
+}
+
+.dailyepoch-footer-nav a {
+  color: var(--de-accent);
+}
+
+.dailyepoch-source-ref {
+  cursor: help;
+  margin-left: .15em;
+  color: #999;
+  font-size: .72em;
+  vertical-align: super;
+}
+
+.copy-code-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: rgba(0,0,0,.3);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.copy-code-button:hover {
+  background: rgba(255,255,255,.12);
+}
+
+.site-refresh-home {
+  min-height: 100vh;
+  background: #f5f7fa;
+  color: #333;
+}
+
+.site-refresh-home .home-shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 36px 22px 60px;
+}
+
+.site-refresh-home .home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 32px;
+  padding: 24px 28px;
+  border-radius: 10px;
+  background: #222;
+  color: #fff;
+}
+
+.site-refresh-home .home-brand {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.site-refresh-home .home-subtitle {
+  margin: 6px 0 0;
+  color: #bbb;
+}
+
+.site-refresh-home .home-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.site-refresh-home .home-nav a {
+  color: #ddd;
+  text-decoration: none;
+}
+
+.site-refresh-home .home-nav a:hover,
+.site-refresh-home .home-nav a[aria-current="page"] {
+  color: #fff;
+}
+
+.home-hero {
+  margin-bottom: 28px;
+  padding: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #eef5ff, #fff);
+  border: 1px solid #dce9fb;
+}
+
+.home-hero h1 {
+  margin: 0 0 10px;
+  font-size: 34px;
+  line-height: 1.25;
+}
+
+.home-hero p {
+  max-width: 780px;
+  margin: 0;
+  color: #555;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+}
+
+.site-refresh-card {
+  padding: 26px;
+}
+
+.site-refresh-card h2 {
+  margin-top: 0;
+}
+
+.brief-list,
+.legacy-list,
+.search-result-list-modern {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brief-list li,
+.legacy-list li,
+.search-result-list-modern li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--de-border);
+}
+
+.brief-list li:last-child,
+.legacy-list li:last-child {
+  border-bottom: 0;
+}
+
+.brief-list a,
+.legacy-list a,
+.search-result-list-modern a {
+  color: #333;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.brief-list a:hover,
+.legacy-list a:hover,
+.search-result-list-modern a:hover {
+  color: var(--de-accent);
+}
+
+.brief-date {
+  display: inline-block;
+  min-width: 96px;
+  color: var(--de-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-more {
+  display: inline-block;
+  margin-top: 18px;
+  color: var(--de-accent);
+  text-decoration: none;
+}
+
+.home-search {
+  margin-top: 24px;
+}
+
+.home-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid #d8dce2;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+.search-result-list-modern {
+  margin-top: 10px;
+}
+
+.search-result-list-modern small {
+  display: block;
+  margin-top: 4px;
+  color: #888;
+}
+
+.home-footer {
+  padding-top: 32px;
+  color: #888;
+  text-align: center;
+}
+
+.error-page {
+  text-align: center;
+}
+
+.error-page .error-code {
+  font-size: 84px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--de-accent);
+}
+
+@media (max-width: 991px) {
+  .dailyepoch-shell .content-wrap { width: 100%; }
+  .dailyepoch-shell .sidebar { display: none; }
+  .home-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 767px) {
+  .dailyepoch-shell .post-body { font-size: 15px; }
+  .dailyepoch-footer-nav,
+  .site-refresh-home .home-header { flex-direction: column; align-items: flex-start; }
+  .site-refresh-home .home-shell { padding: 18px 12px 40px; }
+  .home-hero,
+  .site-refresh-card { padding: 20px; }
+  .home-hero h1 { font-size: 28px; }
+}

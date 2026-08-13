@@ -25,18 +25,24 @@ $(document).ready(function () {
     });
   });
 
-  /**
-   * Register JS handlers by condition option.
-   * Need to add config option in Front-End at 'layout/_partials/head.swig' file.
-   */
   CONFIG.fancybox && NexT.utils.wrapImageWithFancyBox();
   CONFIG.tabs && NexT.utils.registerTabsTag();
 
   NexT.utils.embeddedVideoTransformer();
+
+  // Load the compatibility layer on every legacy Hexo page. It adds the
+  // DailyEpoch navigation entry, corrects canonical metadata at runtime,
+  // hardens external links, and keeps the copyright year current.
+  if (!document.querySelector('script[data-dailyepoch-site-fixes]')) {
+    var script = document.createElement('script');
+    script.src = '/js/dailyepoch.js';
+    script.async = true;
+    script.setAttribute('data-dailyepoch-site-fixes', '1');
+    document.body.appendChild(script);
+  }
+
   NexT.utils.addActiveClassToMenuItem();
 
-
-  // Define Motion Sequence.
   NexT.motion.integrator
     .add(NexT.motion.middleWares.logo)
     .add(NexT.motion.middleWares.menu)
@@ -45,7 +51,6 @@ $(document).ready(function () {
 
   $(document).trigger('motion:before');
 
-  // Bootstrap Motion.
   CONFIG.motion.enable && NexT.motion.integrator.bootstrap();
 
   $(document).trigger('bootstrap:after');

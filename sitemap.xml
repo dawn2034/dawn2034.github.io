@@ -1,0 +1,19 @@
+---
+layout: null
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{{ '/' | absolute_url }}</loc></url>
+  <url><loc>{{ '/DailyEpoch/' | absolute_url }}</loc><lastmod>2026-08-13</lastmod></url>
+  {% assign briefs = site.pages | where_exp: "item", "item.path contains 'DailyEpoch/2026-'" | sort: "date" | reverse %}
+  {% for brief in briefs %}
+  <url>
+    <loc>{{ brief.url | absolute_url }}</loc>
+    <lastmod>{{ brief.date | date: "%Y-%m-%d" }}</lastmod>
+  </url>
+  {% endfor %}
+  <url><loc>{{ '/archives/' | absolute_url }}</loc></url>
+  <url><loc>{{ '/categories/' | absolute_url }}</loc></url>
+  <url><loc>{{ '/tags/' | absolute_url }}</loc></url>
+  <url><loc>{{ '/about/' | absolute_url }}</loc></url>
+</urlset>
