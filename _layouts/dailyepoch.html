@@ -20,6 +20,63 @@
   <link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/dailyepoch.css">
+  <style>
+    .dailyepoch-shell .post-body pre {
+      box-sizing: border-box;
+      padding: 1.15em 4.8em 1.15em 1.2em;
+      border: 1px solid #dfe3e8;
+      border-radius: 7px;
+      background: #f6f8fa;
+      color: #24292f;
+      font-size: 14px;
+      line-height: 1.65;
+      tab-size: 2;
+      -webkit-overflow-scrolling: touch;
+    }
+    .dailyepoch-shell .post-body pre code {
+      padding: 0;
+      background: transparent;
+      color: #24292f;
+      font-size: inherit;
+      line-height: inherit;
+      text-shadow: none;
+      white-space: pre;
+      word-break: normal;
+      overflow-wrap: normal;
+    }
+    .copy-code-button {
+      top: 10px;
+      right: 10px;
+      min-height: 34px;
+      border: 1px solid #c9d1d9;
+      border-radius: 6px;
+      padding: 5px 10px;
+      background: #fff;
+      color: #57606a;
+      box-shadow: 0 1px 2px rgba(27,31,36,.06);
+      line-height: 1.2;
+    }
+    .copy-code-button:hover,
+    .copy-code-button:focus {
+      border-color: #aeb7c2;
+      background: #eef1f4;
+      color: #24292f;
+    }
+    @media (max-width: 767px) {
+      .dailyepoch-shell .post-body pre {
+        margin-left: 0;
+        margin-right: 0;
+        padding: 1em 4.2em 1em 1em;
+        font-size: 13px;
+      }
+      .copy-code-button {
+        top: 8px;
+        right: 8px;
+        min-height: 32px;
+        padding: 5px 9px;
+      }
+    }
+  </style>
   <script>
     window.MathJax = {
       tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
