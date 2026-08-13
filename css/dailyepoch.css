@@ -1,5 +1,6 @@
 @import url('/css/dailyepoch-base.css');
 
+/* DailyEpoch navigation is generated at build time by the Jekyll layout. */
 html {
   scroll-behavior: smooth;
 }
