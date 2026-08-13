@@ -1,0 +1,34 @@
+name: Export DailyEpoch source
+
+on:
+  push:
+    branches:
+      - agent/fix-dailyepoch-citations-latex
+    paths:
+      - '.github/workflows/export-dailyepoch-source.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package source files
+        run: |
+          tar -czf dailyepoch-source.tar.gz \
+            DailyEpoch \
+            _layouts \
+            _config.yml \
+            css/dailyepoch.css \
+            js/dailyepoch.js \
+            search.xml \
+            README.md \
+            .github/workflows/validate-pages.yml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dailyepoch-source
+          path: dailyepoch-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1
