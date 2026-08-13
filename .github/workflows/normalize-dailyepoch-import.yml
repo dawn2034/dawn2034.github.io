@@ -1,0 +1,114 @@
+name: Normalize DailyEpoch import
+
+on:
+  push:
+    branches:
+      - bulk-dailyepoch-import
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bulk-dailyepoch-import
+          fetch-depth: 0
+
+      - name: Normalize Markdown and validate archive
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          daily = Path("DailyEpoch")
+          date_re = re.compile(r"^2026-\d{2}-\d{2}\.md$")
+          cite_re = re.compile(r"cite[^]+")
+          url_widget_re = re.compile(r"url([^]+)(https?://[^]+)")
+          nav_widget_re = re.compile(r"navlist([^]+)[^]+")
+          fence_id_re = re.compile(r'^(```[^\n]*?)\s+id="[^"]+"\s*$', re.MULTILINE)
+
+          sources_0812 = """## 参考来源
+
+          1. [Privileged Likelihood Is Not Automatically Value: Three Checks for Token Credit in On-Policy Self-Distillation](https://arxiv.org/abs/2608.09263)
+          2. [Mismatch Matters: On-Policy Distillation Beyond Token Agreement](https://arxiv.org/abs/2608.09836)
+          3. [TIDE 官方代码](https://github.com/yzc-666/TIDE)
+          4. [Rethinking Self-Evolving Agents: Do We Still Need Prescribed Optimization Pipelines?](https://arxiv.org/abs/2608.09629)
+          5. [KVDiagnosis: A Diagnostic Benchmark for KV-Cache Compression in Long-Context Language Models](https://arxiv.org/abs/2608.09412)
+          6. [KVDiagnosis 官方代码与数据](https://github.com/ChosenQC/KVDiagnosis)
+          7. [DREAM Technical Report](https://arxiv.org/abs/2608.09408)
+          8. [MetaStrategy: Generative Ranking with Executable LLM Strategies](https://arxiv.org/abs/2608.09440)
+          9. [From Sweep to Seam: Interleaved Cross-Block Post-Training Quantization](https://arxiv.org/abs/2608.09595)
+          10. [SHE: Trajectory-driven Safety Harness Evolution for LLM Agents](https://arxiv.org/abs/2608.09885)
+          """
+          sources_0812 = "\n".join(line.lstrip() for line in sources_0812.strip().splitlines())
+
+          def ensure_permalink(text: str, stem: str) -> str:
+              if not text.startswith("---\n"):
+                  raise RuntimeError(f"{stem}: missing YAML front matter")
+              end = text.find("\n---\n", 4)
+              if end < 0:
+                  raise RuntimeError(f"{stem}: malformed YAML front matter")
+              front = text[4:end]
+              if not re.search(r"(?m)^permalink:\s*", front):
+                  front = front.rstrip() + f"\npermalink: /DailyEpoch/{stem}/"
+              return "---\n" + front + text[end:]
+
+          def normalize_math(text: str) -> str:
+              lines = text.splitlines()
+              out = []
+              in_fence = False
+              for line in lines:
+                  if line.lstrip().startswith("```"):
+                      in_fence = not in_fence
+                      out.append(line)
+                      continue
+                  if not in_fence:
+                      line = line.replace(r"\[", "$$").replace(r"\]", "$$")
+                      line = line.replace(r"\(", "$ ").replace(r"\)", " $")
+                      line = re.sub(r"\$\s+([^$\n]+?)\s+\$", r"$\1$", line)
+                  out.append(line)
+              return "\n".join(out)
+
+          files = sorted(p for p in daily.glob("*.md") if date_re.match(p.name))
+          if len(files) != 31:
+              raise RuntimeError(f"expected 31 dated files, found {len(files)}")
+
+          for path in files:
+              text = path.read_text(encoding="utf-8")
+              text = ensure_permalink(text, path.stem)
+              text = url_widget_re.sub(r"[\1](\2)", text)
+              text = nav_widget_re.sub(r"*\1：内部导航标记已移除。*", text)
+              text = cite_re.sub("", text)
+              text = fence_id_re.sub(r"\1", text)
+              text = normalize_math(text)
+              text = re.sub(r"[ \t]+\n", "\n", text)
+              text = re.sub(r"\n{4,}", "\n\n\n", text).rstrip() + "\n"
+
+              if path.name == "2026-08-12.md":
+                  text = re.sub(r"\n---\n\n## 参考来源\n.*\Z", "", text, flags=re.DOTALL).rstrip()
+                  text += "\n\n---\n\n" + sources_0812 + "\n"
+
+              if "cite" in text or "navlist" in text:
+                  raise RuntimeError(f"{path.name}: internal citation marker remains")
+              if f"permalink: /DailyEpoch/{path.stem}/" not in text:
+                  raise RuntimeError(f"{path.name}: permalink missing")
+              if "## 参考来源" not in text:
+                  raise RuntimeError(f"{path.name}: source list missing")
+              path.write_text(text, encoding="utf-8")
+
+      - name: Commit normalized archive to import branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DailyEpoch
+          if git diff --cached --quiet; then
+            echo "No normalization changes required"
+            exit 0
+          fi
+          git commit -m "Normalize DailyEpoch permalinks and citations"
+          git push origin HEAD:bulk-dailyepoch-import
