@@ -29,6 +29,7 @@
   <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+  {% assign dailyepoch_h2_parts = content | split: '<h2 id="' %}
   <div class="container sidebar-position-left page-post-detail dailyepoch-shell">
     <div class="headband"></div>
 
@@ -89,6 +90,18 @@
                 </header>
 
                 <div class="post-body" itemprop="articleBody">
+                  <details class="dailyepoch-mobile-toc">
+                    <summary>本文目录</summary>
+                    <ol class="dailyepoch-toc-list">
+                      {% for dailyepoch_part in dailyepoch_h2_parts offset:1 %}
+                        {% assign dailyepoch_id = dailyepoch_part | split: '"' | first %}
+                        {% capture dailyepoch_prefix %}{{ dailyepoch_id }}">{% endcapture %}
+                        {% assign dailyepoch_after_prefix = dailyepoch_part | remove_first: dailyepoch_prefix %}
+                        {% assign dailyepoch_title = dailyepoch_after_prefix | split: '</h2>' | first | strip_html | strip %}
+                        <li class="dailyepoch-toc-item dailyepoch-toc-h2"><a class="dailyepoch-toc-link" href="#{{ dailyepoch_id }}">{{ dailyepoch_title }}</a></li>
+                      {% endfor %}
+                    </ol>
+                  </details>
                   {{ content }}
                 </div>
 
@@ -124,6 +137,19 @@
                 <span class="links-of-author-item"><a href="https://github.com/dawn2034" title="GitHub" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i>GitHub</a></span>
               </div>
             </section>
+
+            <nav class="dailyepoch-toc" aria-label="本文目录">
+              <div class="dailyepoch-toc-title">本文目录</div>
+              <ol class="dailyepoch-toc-list">
+                {% for dailyepoch_part in dailyepoch_h2_parts offset:1 %}
+                  {% assign dailyepoch_id = dailyepoch_part | split: '"' | first %}
+                  {% capture dailyepoch_prefix %}{{ dailyepoch_id }}">{% endcapture %}
+                  {% assign dailyepoch_after_prefix = dailyepoch_part | remove_first: dailyepoch_prefix %}
+                  {% assign dailyepoch_title = dailyepoch_after_prefix | split: '</h2>' | first | strip_html | strip %}
+                  <li class="dailyepoch-toc-item dailyepoch-toc-h2"><a class="dailyepoch-toc-link" href="#{{ dailyepoch_id }}">{{ dailyepoch_title }}</a></li>
+                {% endfor %}
+              </ol>
+            </nav>
           </div>
         </aside>
       </div>
