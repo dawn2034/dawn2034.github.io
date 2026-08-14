@@ -26,17 +26,28 @@ html {
   min-width: 0;
 }
 
+/*
+ * Keep the whole sidebar sticky, not sidebar-inner.
+ * In a flex row with align-items:flex-start the sidebar flex item is only as tall
+ * as its contents; making the child sticky therefore gives it no scroll range.
+ * Making the flex item itself sticky lets the article height become the containing
+ * block while sidebar-inner remains independently scrollable when the TOC is long.
+ */
 .dailyepoch-shell .sidebar {
-  position: relative;
-  top: auto;
+  position: -webkit-sticky;
+  position: sticky;
+  top: 20px;
   right: auto;
   bottom: auto;
   left: auto;
+  align-self: flex-start;
   float: none;
   order: -1;
   flex: 0 0 240px;
   width: 240px;
+  max-height: calc(100vh - 40px);
   margin: 0;
+  overflow: visible;
   background: transparent;
   box-shadow: none;
 }
@@ -46,13 +57,14 @@ html {
   width: 240px;
   max-height: calc(100vh - 40px);
   overflow-y: auto;
-  position: sticky;
-  top: 20px;
+  position: static;
+  top: auto;
   padding: 20px 16px;
   border-radius: 8px;
   opacity: 1;
   scrollbar-width: thin;
   scrollbar-color: #d8dee8 transparent;
+  overscroll-behavior: contain;
 }
 
 .dailyepoch-shell .sidebar-inner::-webkit-scrollbar {
@@ -247,6 +259,8 @@ html {
 
   .dailyepoch-shell .sidebar {
     display: none;
+    position: static;
+    max-height: none;
   }
 
   .dailyepoch-mobile-toc {
