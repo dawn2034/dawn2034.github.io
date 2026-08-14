@@ -18,10 +18,4 @@ layout: null
     <content type="text">自然语言处理、知识抽取与强化学习实习总结。</content>
     <categories><category>学习总结</category></categories>
   </entry>
-  <entry>
-    <title>markdown &amp; hexo 操作</title>
-    <url>%2F2018%2F06%2F09%2Fmarkdown-hexo-%E6%93%8D%E4%BD%9C%2F</url>
-    <content type="text">Markdown 语法与 Hexo 常用操作。</content>
-    <categories><category>Skill</category></categories>
-  </entry>
 </search>
