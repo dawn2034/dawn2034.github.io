@@ -1,0 +1,772 @@
+---
+title: "每日 AI 技术简报｜2026-08-11"
+date: 2026-08-11
+categories: [DailyEpoch]
+tags: [AI, LLM, Agent, Skill, RL, RAG, Quantization, Recommendation]
+permalink: /DailyEpoch/2026-08-11/
+---
+
+# 每日 AI 技术简报｜2026-08-11
+
+arXiv 最新公开批次为 **8 月 10 日**：cs.AI 201 项、cs.LG 144 项、cs.CL 76 项、cs.IR 16 项；分类存在大量交叉收录，不能直接相加。今天筛下来，最值得看的主线不是“又多了几个 Agent 框架”，而是 **Self-Evolving Skill 开始显式引入闭环控制与删减机制、Agent RL 的 credit assignment 进一步细化到 action→token 两层、Test-Time Scaling 从“多算一点”转向计算预算路由、RAG 的 KV 复用粒度从 chunk 下沉到 information nugget，以及推荐系统开始把长序列 Teacher 的知识压进可上线的短序列 Student。**
+
+## 今日核心判断
+
+1. **“Skill 自我进化”正在从 append-only 经验积累转向真正的闭环优化，但不要被“Proximal Gradient”这个名字误导。** SkillProx 的 forward/backward 结构很有价值，但作者自己明确说明其目标函数只是概念性类比，不是真正对离散 Skill 做梯度下降，也没有经典 PGD 收敛保证。
+
+2. **Agent RL 里越来越清楚的一件事是：trajectory reward → action credit → token allocation 是三个不同问题。** FACTOR 的结果尤其说明，首先解决“哪一步贡献了多少”比解决“这一步内部哪些 token 更重要”更关键，而且 horizon 越长，这个问题越严重。
+
+3. **Test-Time Scaling 的下一阶段不是无脑 Best-of-N，而是决定下一单位算力到底应该花在生成、Cheap Verifier、Strong Verifier，还是直接停止。** CoBa 在当前 reasoning benchmark 上已经表现出很强的 compute–accuracy trade-off，但它使用的是 parameter-weighted tokens，不等价于真实 GPU latency 或美元成本。
+
+4. **RAG Serving 正从“缓存整个 chunk”变成“缓存可组合的语义单元”。** CoinRAG 的优势在严格 TTFT SLA 下尤其明显，不过它并不是 training-free cache trick：需要离线 LLM 提取 nugget，并对模型做额外 fine-tuning。
+
+5. **推荐长序列一个越来越实用的范式是：Teacher 吃完整历史，Student 在线压缩。** TM20K 证明 20K 行为序列可以真正进入工业广告排序，但值得强调：线上性能不是“20K Transformer 免费获得”，而是完整 Teacher、规则压缩、KD 和大量 serving 工程共同换来的。
+
+---
+
+## 1. SkillProx：Self-Evolving Skill 终于开始同时回答“怎么加”和“什么时候删”
+
+### 发生了什么
+
+SkillProx 把文本 Skill 的演化拆成一个 forward–backward 闭环。
+
+**Forward** 阶段先执行当前 Skill，根据失败轨迹生成修改，然后**在同一批任务上重新执行修改后的 Skill**。只有 hard accuracy 和 cell accuracy 都不下降才接受修改，否则 rollback；被拒绝的方向及真实结果还会反馈给下一轮诊断。
+
+**Backward** 阶段则将完整 Skill 拆成知识单元：
+
+$$
+X=\{q_1,q_2,\ldots,q_n\}
+$$
+
+逐一做 leave-one-out：
+
+$$
+u_i=R(X)-R(X\setminus q_i)
+$$
+
+如果删除某个知识单元反而让验证集更好，它就是 negative-utility knowledge，可以被删除、降级或合并。论文在多个 backbone 和 IID/OOD benchmark 上，相对最强 gradient-based Skill baseline 平均提升 **3.0 个百分点**。
+
+一个代表性案例中，删减使 Skill 文本缩短 3.12%，同时 OJ hard accuracy 从 **46% 提升至 54%**。这与这几天反复看到的 Skill contamination 现象高度一致：文本越多并不意味着经验越多，有时只是冲突规则越多。
+
+### 为什么重要
+
+以前很多 Skill Evolution 实际上是：
+
+$$
+\text{失败}
+\rightarrow
+\text{LLM 解释失败}
+\rightarrow
+\text{把解释追加进 Skill}
+$$
+
+最大的问题是 **semantic plausibility 被误当成 causal utility**。
+
+“如果结果错了，记住以后要更仔细核验”听起来永远很合理，但加入 Skill 后可能使 Agent：
+
+- 增加无意义验证；
+- 过度保守；
+- 在别的任务误触发；
+- 与已有 procedure 冲突。
+
+SkillProx 至少要求：
+
+$$
+\boxed{
+\text{修改看起来合理}
+\neq
+\text{修改应该保留}
+}
+$$
+
+必须经过真实 rollout。
+
+### 可信度与局限
+
+这里需要对论文标题降温。
+
+作者明确说明所谓：
+
+$$
+L_{\mathcal T}(X)+\lambda G(X)
+$$
+
+只是用于解释“性能 + 文本复杂度”的**概念目标**，实现中没有真正优化这个式子，也不输入 $\lambda$；文本空间是离散非微分的。因此 “Proximal Textual Gradient Descent” 更像算法类比，而不是严格意义上的 PGD。
+
+另一个更实际的问题是，Forward Gate 只在**当前训练 batch** 上检查“不退步”。作者明确承认这不意味着 validation/test performance 会单调提升。换句话说：
+
+$$
+R_{B_k}(X_{k+1})\ge R_{B_k}(X_k)
+$$
+
+并不能推出：
+
+$$
+R_{\text{OOD}}(X_{k+1})\ge R_{\text{OOD}}(X_k)
+$$
+
+所以它比 open-loop Skill Evolution 好，但还没有解决 Skill 过拟合。
+
+### 最值得继续追踪
+
+我会重点看 **长期 Skill Pool 中的联合效用**。Leave-one-out 能识别单个负效用单元，却未必识别：
+
+$$
+u(q_i)>0,
+\quad
+u(q_j)>0,
+\quad
+u(q_i,q_j)<0
+$$
+
+这种组合冲突。
+
+论文已经声明代码将开放，但当前文字仍是 “will be available”，所以暂时不把仓库成熟度当作论文证据的一部分。
+
+---
+
+## 2. FACTOR：Agent RL 不应该直接把 trajectory advantage 平铺给所有动作和 Token
+
+这是今天我认为**技术上最值得读的一篇**。
+
+### 发生了什么
+
+FACTOR 把 credit assignment 明确拆成两层。
+
+第一层回答：
+
+> **How much——这个 Action 应该分多少 Credit？**
+
+它从 trajectory 中恢复若干 checkpoint，用冻结 behavior policy 做短 continuation，训练一个 value head，再构造 TD residual：
+
+$$
+A_t^\star
+\approx
+r_t+V(s_{t+1})-V(s_t)
+$$
+
+并设计为这些 action-level credit 最终能够 telescope 回原 trajectory advantage。
+
+第二层回答：
+
+> **Where——这份 Action Credit 应该落在哪些 Token 上？**
+
+模型在看到**动作执行后的真实环境反馈**后扮演 hindsight teacher，再与执行动作时的 Student probability 做 likelihood gap，根据这个 gap 在 action 内部分配 credit。
+
+一个很关键的设计是：Token 权重只能重新分配 action credit，**不能改变 action 的整体正负方向**。
+
+### 结果
+
+在严格控制 backbone、seed、split、rollout temperature 和 loss reduction 的对照中，Qwen2.5-7B 上 FACTOR 相对 SERL-Repro：
+
+- ALFWorld：89.8 → **92.0**；
+- WebShop：80.0 → **82.4**；
+- ScienceWorld：44.7 → **48.9**。
+
+三项分别提升 +2.2、+2.4、+4.2 个百分点。
+
+更有信息量的是按 trajectory 长度拆解：
+
+$$
+T\le5:\quad +0.4
+$$
+
+$$
+6\le T\le10:\quad +1.4
+$$
+
+$$
+11\le T\le20:\quad +3.4
+$$
+
+$$
+T\ge21:\quad \mathbf{+5.6}
+$$
+
+也就是说，随着 horizon 变长，精确信用分配的价值单调增加。
+
+### 为什么重要
+
+很多 Agent GRPO 实现里实际上存在一个隐藏假设：
+
+$$
+A(\tau)
+\rightarrow
+\text{所有动作}
+\rightarrow
+\text{所有 Token}
+$$
+
+比如一条 30 步的成功轨迹：
+
+- 前 20 步只是普通导航；
+- 第 21 步找到真正关键证据；
+- 第 25 步做了一个稍有风险但正确的工具调用；
+- 第 30 步成功。
+
+如果每个 action 都吃到类似的正 advantage，模型就会同时强化大量“与成功只是相关、未必有贡献”的行为。
+
+FACTOR 实际上要求：
+
+$$
+\boxed{
+\text{先决定 Action 的信用总量，
+再决定 Action 内 Token 如何分配}
+}
+$$
+
+这比单纯训练 PRM 更接近真实 Agent trajectory 的层级结构。
+
+### 哪部分真正贡献最大？
+
+消融很清楚。
+
+去掉 **TD Action Credit（TAC）**：
+
+- ALFWorld −2.1pp；
+- WebShop −1.9pp；
+- ScienceWorld −3.5pp。
+
+去掉 Token-level hindsight allocation：
+
+- ALFWorld +0.2pp；
+- WebShop −1.6pp；
+- ScienceWorld −2.1pp。
+
+也就是说，目前证据更强地支持：
+
+> **action-level credit assignment 是第一优先级；token-level 精细分配是增量项。**
+
+### 可信度与局限
+
+这篇论文的控制实验比近期很多 Agent RL 论文严谨：三 seed、matched GPU-hours、shuffle controls、horizon stratification 都做了。额外训练计算也没有隐藏——默认 FACTOR 使用约 **3.5× environment interactions、1.25× wall-clock**；compute-matched 的 SERL-Extended 仍落后。
+
+但它仍然只覆盖 ALFWorld、WebShop、ScienceWorld 这类受控文本环境。训练期还需要恢复 checkpoint、额外 continuations、value head 和 post-action feedback。对于真实 Browser / Coding Agent，环境重放可能非常昂贵甚至不可重放。
+
+所以不能直接得出：
+
+> “FACTOR 应该替换 GRPO”。
+
+更合理的结论是：
+
+> **如果你的 trajectory 长、terminal reward 稀疏，那么 action-level uniform advantage 很可能已经是明显瓶颈。**
+
+---
+
+## 3. CoBa：Test-Time Scaling 应该解决“下一份算力投在哪里”
+
+### 发生了什么
+
+CoBa 把推理预算看成一个 routing 问题，而不是固定 Best-of-N：
+
+$$
+\text{Generate}
+\quad\text{vs.}\quad
+\text{Cheap Verify}
+\quad\text{vs.}\quad
+\text{Strong Verify}
+\quad\text{vs.}\quad
+\text{Stop}
+$$
+
+它先少量生成 candidate，对所有 candidate 用便宜 verifier 做第一轮筛选，然后只把“不确定但值得继续投入”的样本路由给更强 verifier。
+
+在 MATH-500、AIME 2024/25、AMC 2023 和程序化符号推理共 **3,129 个 example-generator evaluations** 上：
+
+- CoBa-Routed-Strong：85.13%；
+- Self-eval weighted voting：85.20%。
+
+但前者使用的 parameter-weighted tokens 少 **49.1%**。
+
+与 Best-of-16 majority 相比，macro accuracy 只差 0.01 个点，同时少用 **58.9%** 的 parameter-weighted tokens。
+
+### 为什么重要
+
+Test-Time Scaling 的实际最优策略很可能不是：
+
+$$
+N=16
+$$
+
+而是：
+
+$$
+N(x)
+=
+f(
+\text{difficulty},
+\text{candidate disagreement},
+\text{verification confidence}
+)
+$$
+
+非常简单的问题应该一次生成直接结束；多个候选高度一致时，再调用 Strong Verifier 也是浪费；只有“候选分歧 + verifier 不确定”的题目值得继续加算力。
+
+这和推荐系统里的 cascade/routing 非常像：
+
+$$
+\text{廉价模型覆盖所有流量}
+\rightarrow
+\text{昂贵模型只处理边界样本}
+$$
+
+### 可信度与局限
+
+**parameter-weighted tokens 不是 Serving 成本。**
+
+它不能完整反映：
+
+- batch utilization；
+- KV reuse；
+- verifier 是否可以并行；
+- GPU 型号；
+- TTFT；
+- API 定价；
+- pipeline bubble。
+
+论文也承认 paired tests 仍保留 Best-of-16 的小幅优势，只是付出了显著更高计算量。
+
+所以目前可以说：
+
+> CoBa 找到了更好的**抽象计算预算分配策略**。
+
+还不能说：
+
+> 它已经证明生产环境能省 59% GPU 成本。
+
+### 最值得继续追踪
+
+下一步最有价值的指标应该从：
+
+$$
+\text{parameter-weighted tokens}
+$$
+
+换成：
+
+$$
+\text{GPU-ms per correct answer}
+$$
+
+以及：
+
+$$
+P95/P99\ latency
+$$
+
+尤其是在 continuous batching 下。
+
+---
+
+## 4. CoinRAG：KV Cache 复用的下一步可能不是 Chunk，而是 Nugget
+
+### 发生了什么
+
+传统 KV-RAG cache 通常离线缓存整个 512-token chunk。
+
+CoinRAG 先用模型从文档中提取更小的 **information nuggets**，离线保存对应 KV 表示；线上经过两级 retrieval，只挑真正与 Query 相关的 nugget，再把这些缓存片段组合成一个紧凑上下文。
+
+在 LongBench 的 HotpotQA、2WikiMQA、MuSiQue 上，在：
+
+$$
+P99\ TTFT\le100ms
+$$
+
+条件下平均 F1：
+
+- Standard RAG：29.9；
+- CacheBlend：33.7；
+- TurboRAG：39.6；
+- KVLink：38.2；
+- **CoinRAG：41.7**。
+
+CoinRAG 的平均活动前缀只有 **465 tokens**，TurboRAG 为 855，KVLink 为 1117。
+
+也就是说，相对当前最强对手 TurboRAG：
+
+$$
+F1:+5.3\%\ \text{relative}
+$$
+
+同时上下文约短：
+
+$$
+1.84\times
+$$
+
+### 为什么重要
+
+它改变了 KV Cache 的复用单位：
+
+$$
+\text{Document}
+\rightarrow
+\text{Chunk}
+\rightarrow
+\boxed{\text{Semantic Nugget}}
+$$
+
+对于企业知识库，很多 chunk 里真正与 Query 有关的可能只有一句话。继续缓存整个 chunk 会把无关 Token 一并拉进 active KV。
+
+因此真正值得优化的目标不只是：
+
+$$
+\text{cache hit rate}
+$$
+
+还包括：
+
+$$
+\text{useful information per live KV token}
+$$
+
+### 可信度与局限
+
+这不是一个即插即用的 Serving 技巧。
+
+实验中：
+
+- GPT-4o-mini 离线抽取 nuggets；
+- BGE-M3 做 retrieval；
+- Qwen2-7B-Instruct 生成答案；
+- CoinRAG 还在 **277,280 个样本上 fine-tune 1 epoch**。
+
+因此增益不能简单归因于“切 KV 更细”。
+
+另外优势明显依赖 latency regime。论文显示，P99 放宽到约 116ms 后其他方法开始接近；约 160ms 后 KVLink 在 HotpotQA 上甚至会追上并超过 CoinRAG。
+
+所以它真正证明的是：
+
+> **在 tight-SLA 长上下文 RAG 中，fine-grained KV composition 很有潜力。**
+
+不是：
+
+> **CoinRAG 普遍优于所有 RAG。**
+
+---
+
+## 5. ReQuant：量化完成以后，再在同一个整数网格上“修一次作业”
+
+### 发生了什么
+
+大多数 PTQ 方法做完量化后，整数 code assignment 就固定了。
+
+ReQuant 的思路很简单：
+
+$$
+q_i
+\rightarrow
+q_i\pm1,\ q_i\pm2
+$$
+
+在**原有 quantization grid、scale 和 zero-point 完全不变**的条件下，对整数 code 做离散 local search；只有 reconstruction error 下降才接受移动。
+
+因此它：
+
+- 不需要 backward；
+- 不需要 optimizer state；
+- 不改变最终部署格式；
+- 可以作为 RTN、AWQ、GPTQ、GPTAQ 后处理层。
+
+### 结果为什么值得注意
+
+Qwen3-14B、W4A16 下：
+
+$$
+RTN+ReQuant:+2.51\ \text{accuracy points}
+$$
+
+Llama-3-8B、W4A4 下：
+
+$$
+RTN+ReQuant:+8.61\ \text{points}
+$$
+
+在更极端的 Llama-3 70B W4A4 中，RTN 的十任务平均从 32.78 直接恢复到 **66.93**。GPTAQ 这种更强 initializer 也继续有收益。
+
+甚至到了 Qwen3-235B-A22B MoE，GPTQ+QuaRot + 4 sweeps 后，平均 accuracy 从 75.00 提升到 75.35，同时部分 KL 明显下降。
+
+### 为什么重要
+
+它提示一个很实际的问题：
+
+> 我们通常把 PTQ 的输出整数 code 当成“优化结束”，其实里面可能仍残留大量低成本可纠正的 assignment error。
+
+也就是：
+
+$$
+\boxed{
+\text{Quantizer 构造得好}
+\neq
+\text{最终整数解已经局部最优}
+}
+$$
+
+尤其对于廉价 RTN，这类 post-refinement 有可能缩小与复杂 PTQ 方法的差距。
+
+### 可信度与局限
+
+最大的代价不是推理，而是**离线量化时间**。
+
+Qwen3-14B：
+
+- RTN + QuaRot：15.6 min；
+- + ReQuant：**117.1 min**。
+
+GPTAQ + QuaRot：
+
+- 35.3 min；
+- + ReQuant：**128.6 min**。
+
+Llama-3 8B 的 sweep 也显示，绝大部分收益往往前 1–2 轮就已经拿到；继续跑到 8 sweep 会继续明显增加时间，却未必提高 accuracy。
+
+所以我的工程判断是：
+
+> ReQuant 更像“模型只量化一次、长期大量 Serving”时值得购买的离线优化。
+
+如果频繁重新量化 checkpoint，它的额外离线成本未必划算。
+
+---
+
+## 6. 推荐系统｜TM20K：完整 20K Teacher + 1.8K Student，而不是让线上 Transformer 硬吃 20K
+
+### 发生了什么
+
+ByteDance 的 TM20K 将广告排序中的用户电商行为序列最大长度从 **5K 扩到 20K**。
+
+Teacher 真正读取完整 20K sequence，不做压缩；Student 使用三种非常工程化的 merge：
+
+**LITM**：短窗口内相同商品 ID 合并；
+**PATM**：近期行为少压缩，越久远压缩越强；
+**LPTM**：Transformer 越往上层，历史 token 越逐层折叠。
+
+结果是 Teacher 平均实际序列约 8.8K，而线上 Student 被压到约 **1.8K**。
+
+离线：
+
+- 完整 Teacher AUC：+0.26%；
+- 压缩 Student：+0.15%；
+- Student + KD：**+0.22%**。
+
+也就是说 Student 恢复了 Teacher 大约 85% 的离线收益，同时训练吞吐只从 5K baseline 的 88K 降到约 83K；完整 20K Teacher 的吞吐则只有 11K。
+
+### 线上结果
+
+相对已经上线的成熟 5K ranking baseline：
+
+- ADSS：**+1.036%**；
+- ADVV：**+0.780%**；
+- Serving latency：**+5.6%**。
+
+论文称增益具有统计显著性。
+
+### 为什么重要
+
+过去“长序列推荐”的一个误区是：
+
+$$
+\text{想利用20K历史}
+\Rightarrow
+\text{线上必须计算20K历史}
+$$
+
+TM20K 更接近：
+
+$$
+\boxed{
+\text{Offline Teacher 获取长历史上限}
+\rightarrow
+\text{Student 学会有损压缩}
+}
+$$
+
+这与 LLM 长上下文压缩的思路其实相当接近。
+
+更值得注意的是，它的三个 merge 规则并不 fancy——很多收益来自对业务结构的利用：
+
+- 同商品连续操作高度冗余；
+- 最近行为比很旧行为更需要细粒度；
+- 高层表示不必保留所有底层事件。
+
+### 可信度与局限
+
+证据层级不错：billions 训练样本 + 实际线上 A/B。
+
+但论文没有公开 A/B 的：
+
+- 流量规模；
+- 实验持续时间；
+- 置信区间；
+- CTR/CVR/GMV 等更通用指标。
+
+ADSS、ADVV 又是公司内部业务指标，所以不能直接与其他推荐论文的 uplift 横向比较。
+
+另一个重要限制是作者自己承认的：三种 Token Merge **基本都是 rule-based**，换业务领域可能需要重新调参。
+
+### 推荐系统补充｜MISO：别再把模型优化完全当黑盒 HPO
+
+Meta 的 MISO 提出另一条很工程化的路线：训练完 ranking model 后，不只看 AUC/NE，而是系统性读取：
+
+- 参数；
+- activation；
+- gradient；
+- normalization statistics；
+- perturbation sensitivity；
+
+然后回答：
+
+> 哪个模块值得扩容？
+> 哪个 normalization block 应该替换？
+> 哪条 feature path 可以裁掉？
+
+在其 ads ranking case study 中，MISO 相对专家人工调参取得约 **2–2.5× 的 relative NE improvement**；寻找有效 configuration 的完整 training run 从人工流程的 50–92 次下降到 **3–12 次**，减少约 84–94%。
+
+这个方向值得关注，因为它处在：
+
+$$
+\text{人工经验}
+\quad\longleftrightarrow\quad
+\text{黑盒 AutoML}
+$$
+
+之间：模型内部状态直接作为实验选择信号。
+
+但证据要谨慎解读：目前只是一个 Meta 自有 ads ranking case study，报告的是“相对专家流程”的 NE 改善比例和 experiment count，没有独立复现，也没有线上 A/B。它目前更像一个**有启发性的实验治理框架**，还不是已被证明普适的 ranking optimizer。
+
+---
+
+## 今日值得收藏的代码 / 学习资源
+
+**Microsoft SkillOpt** 仍然是目前最适合拿来研究“可验证 Skill Evolution”的公开仓库之一：它将 Skill 当成可训练文本参数，保留每步 snapshot、validation gate、best skill 和完整训练历史，而不是只让 Agent 不断覆盖一个 `SKILL.md`。
+
+近期仓库还加入了 **SkillOpt-Sleep**：从真实 Coding Agent 会话中 harvest trajectory，离线 mine recurring task、replay、consolidate，再经过 held-out validation gate 决定是否进入长期 Skill。这个实现与今天 SkillProx、以及最近几天的 Skill contamination 工作放在一起看非常合适。
+
+值得注意的是，这种 nightly self-evolution 并不天然安全：如果 regression set 太窄，它仍然可以稳定地“学会验证集”。真正值得学习的是它的 **artifact/version/gate 设计**，不是自动进化这个标签本身。
+
+---
+
+## X.com 近 24 小时技术信号
+
+今天我再次针对 **SkillProx、CoBa、CoinRAG、TM20K** 做了 X 限域检索，**公开网页索引仍没有返回能够同时核验以下四项的近 24 小时帖子**：
+
+- 原作者或官方项目身份；
+- 8 月 10–11 日明确发布时间；
+- 可比较的浏览／点赞／转发数据；
+- 明显超出论文摘要的技术内容。
+
+搜索结果主要落在数月前甚至更旧的 test-time scaling 和 recommendation 帖子，因此今天继续不做伪“X 热榜”。
+
+这不是说 X 上没有这些讨论，而是普通 Web Search 无法可靠重建 X 的实时搜索。X 官方说明，**Latest** 才按发布时间倒序返回匹配帖子，而 **Top** 还混合 engagement、health 和 relevance 等信号；公开搜索引擎拿到的网页索引不能等价于这两种实时视图。
+
+所以今天 X 栏的结论是：**无足够可靠样本，不排名。**
+
+---
+
+## 今日最值得花 30 分钟阅读的一项
+
+### FACTOR：How Much, Then Where
+
+我今天会优先读它，而不是 SkillProx。
+
+原因是 Skill / Memory 最近已经出现很多方案，但 **multi-turn Agent RL 的 credit assignment 是更底层的问题**。无论最终使用 GRPO、OPSD、process reward、self-distillation 还是 verifier reward，都绕不开：
+
+$$
+\boxed{
+\text{哪一步值得学多少？
+这一步里的哪些 Token 值得学？}
+}
+$$
+
+建议 30 分钟这样分配：
+
+**前 5 分钟**只读方法概览，搞清楚 TAC / HTA / APM 分别解决什么。
+
+**接下来 10 分钟**看 action credit 与 token allocation 的公式，尤其确认为什么 per-action normalization 能避免 Token weighting 改变 Action Credit 的符号与均值。
+
+**再 8 分钟**看消融。最重要的不是最终 +4.2，而是发现 **TAC 明显比 HTA 更关键**。
+
+**最后 7 分钟**看 horizon stratification：
+
+$$
++0.4
+\rightarrow
++1.4
+\rightarrow
++3.4
+\rightarrow
++5.6
+$$
+
+这是这篇论文最有解释力的结果。
+
+---
+
+## 今日可立即实践的一件事
+
+不需要实现完整 FACTOR。今天就可以对现有 Agent GRPO pipeline 做一次 **Action-Length Credit Audit**。
+
+很多实现最终的 surrogate loss 类似：
+
+$$
+L
+=
+-\frac{1}{\sum_t |a_t|}
+\sum_t
+\sum_{j=1}^{|a_t|}
+A_t
+\log\pi(a_{t,j})
+$$
+
+这隐含导致：
+
+$$
+\text{Action Weight}
+\propto
+|a_t|
+$$
+
+也就是说，一个 30-token 的 Tool Call / Reasoning Action，天然获得约 3 倍于 10-token Action 的梯度贡献，即使两者 trajectory credit 完全一样。
+
+FACTOR 的实测也观察到这个问题：token-mean 时最长动作的相对 surrogate weight 可升到约 **1.31–1.35**，改为 action-mean 后各长度桶都回到约 1.0。
+
+今天可以直接做：
+
+1. 从已有 rollout 抽 5k–20k 个 actions；
+2. 按 action token length 分成 Q1–Q4；
+3. 计算每个 action 在 PPO/GRPO loss 中实际贡献的绝对 surrogate weight；
+4. 再按成功／失败轨迹、Tool Action／Reasoning Action 分层；
+5. 比较 token-mean 与：
+
+$$
+L
+=
+-\frac1T
+\sum_{t=1}^T
+\frac1{|a_t|}
+\sum_j
+A_t\log\pi(a_{t,j})
+$$
+
+这种 **action-mean** reduction。
+
+如果你看到：
+
+$$
+W_{Q4}\gg W_{Q1}
+$$
+
+而且这种差异不能由真实 reward contribution 解释，那么你的 Agent RL 在学习 FACTOR 之前，**已经存在纯粹由输出长度造成的信用偏差**。
+
+这个实验几乎不需要额外 rollout，也不需要训练 verifier，却能直接判断下一步究竟值得投入复杂 credit assignment，还是先修正一个更基础的 loss aggregation 问题。
+
+---
+
+## 参考来源
+
+1. [SkillProx: Self-Evolving Agent Skills via Proximal Textual Gradient Descent](https://arxiv.org/abs/2608.07449)
+2. [How Much, Then Where: Credit-Conserving Action-to-Token Allocation for Multi-Turn Agent Reinforcement Learning](https://arxiv.org/abs/2608.07118)
+3. [CoBa: Cost-Effective Test-Time Scaling via Compute-Balanced Routing](https://arxiv.org/abs/2608.07424)
+4. [CoinRAG: Contextualized Information Nugget KV Cache Reuse for Long-Context RAG](https://arxiv.org/abs/2608.07458)
+5. [ReQuant: Fixed-Grid Discrete Refinement for Post-Training Quantization](https://arxiv.org/abs/2608.07019)
+6. [Teacher Retains Full Tokens, Student Merges Efficiently: TM20K for E-Commerce Sequence Modeling in Ad Recommendation](https://arxiv.org/abs/2608.07055)
+7. [MISO: Model-Internal-State-Guided Optimization for Ranking Models](https://arxiv.org/abs/2608.07035)

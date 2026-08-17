@@ -1,0 +1,57 @@
+name: Build Chirpy Preview
+
+on:
+  push:
+    branches:
+      - preview/chirpy
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chirpy-preview
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout preview source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - name: Build Chirpy preview
+        run: bundle exec jekyll build --source chirpy-src --destination _site
+        env:
+          JEKYLL_ENV: production
+
+      - name: Validate generated HTML
+        run: bundle exec htmlproofer _site --disable-external --allow-hash-href
+
+      - name: Publish preview under master/chirpy-preview
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin master
+          rm -rf /tmp/chirpy-publish
+          git worktree add --detach /tmp/chirpy-publish origin/master
+          cd /tmp/chirpy-publish
+          git checkout -B master origin/master
+          rm -rf chirpy-preview
+          mkdir -p chirpy-preview
+          cp -a "$GITHUB_WORKSPACE/_site/." chirpy-preview/
+          git add chirpy-preview
+          if git diff --cached --quiet; then
+            echo "Preview is already up to date."
+            exit 0
+          fi
+          git commit -m "Publish Chirpy preview"
+          git push origin HEAD:master

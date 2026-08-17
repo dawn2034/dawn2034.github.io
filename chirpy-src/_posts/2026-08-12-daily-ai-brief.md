@@ -1,0 +1,893 @@
+---
+title: "每日 AI 技术简报｜2026-08-12"
+date: 2026-08-12
+categories: [DailyEpoch]
+tags: [AI, LLM, Agent, RL, RAG, Recommender]
+permalink: /DailyEpoch/2026-08-12/
+---
+
+# 每日 AI 技术简报｜2026-08-12
+
+arXiv 最新公开批次为 **2026 年 8 月 11 日**：cs.AI 486 项、cs.LG 320 项、cs.CL 171 项、cs.IR 35 项；分类有大量交叉收录，不能直接相加。今天筛下来，最值得关注的不是某个新 SOTA，而是几条正在逐渐收敛的技术判断：**OPSD 的 token-level credit 需要更严格的因果含义检查；Teacher–Student mismatch 与 credit assignment 是两个不同问题；Self-Evolving Agent 的固定优化 pipeline 可能只是能力不足时的 scaffold；KV Cache 压缩开始从“平均分”转向逐请求故障诊断；工业推荐里的 LLM Agent 最现实的落点正在变成 nearline control plane，而不是让 LLM 接管实时排序。**
+
+## 今日核心判断
+
+1. **“Teacher 在 hindsight context 下更喜欢这个 token”不等于“这个 token 对最终成功有正贡献”。**今天最重要的新论文直接给这个近年来很流行的假设泼了冷水，而且 matched training 的结果相当惨。
+
+2. **但这不能推导出 OPSD 无效。**TIDE 今天同时给出另一面证据：当问题被准确诊断为 Teacher–Student distribution mismatch 时，修正 excess / deficit probability mass 可以带来很大的提升。也就是说，**distillation signal 可以有用，但不要把它未经验证地解释成 RL credit。**
+
+3. **Self-evolving Agent 的“自动优化过程”也许不需要永远写死。**强优化模型可以自己组合实验、修改、选择与停止策略；但中等模型一旦拿掉固定 pipeline，反而变差。这更像 capability-dependent scaffolding，而不是“pipeline 已经过时”。
+
+4. **KV Compression 的平均 LongBench / perplexity 已经不够用了。**两个方法平均分接近，可能破坏完全不同的一批请求；真正需要的是 FullCache→Compressed 的逐样本 paired failure diagnosis。
+
+5. **推荐系统里的 Agent 化目前最有说服力的路径不是生成整个 item list，而是生成“可执行策略”。**让 LLM 在 nearline 产生 objective weight、内容偏好、约束和 position policy，再交给确定性 compiler 和现有 ranking stack 执行，比把 LLM 放进同步在线链路现实得多。
+
+---
+
+# 1. 今日最重要：Privileged Likelihood ≠ Value
+
+## 发生了什么
+
+Salesforce AI Research 的《**Privileged Likelihood Is Not Automatically Value**》针对最近越来越流行的一类 OPSD / privileged self-distillation 方法提出三个必须分开回答的问题：
+
+$$
+Q_1:\quad \text{这个 token score 真能预测更好的后续 outcome 吗？}
+$$
+
+$$
+Q_2:\quad \text{feedback 的生成方式是否改变了被比较的对象？}
+$$
+
+$$
+Q_3:\quad \text{最终 loss 真正在强化什么行为？}
+$$
+
+其中最关键的是 Q1。很多方法实际上计算：
+
+$$
+d_t=
+\log q(v_t\mid s_t,c_{\text{privileged}})
+-
+\log\pi(v_t\mid s_t)
+$$
+
+然后隐含地把 $d_t$ 当成“这个 token 对成功有多少贡献”。但真正的 token action value 应该是：
+
+$$
+Q^\pi_U(s_t,v)
+=
+\mathbb E[U\mid S_t=s_t,V_t=v]
+$$
+
+二者只是**不同干预下的两个量**。Teacher 因为看到了参考答案、批评或未来 observation 而更喜欢某个 token，并不会自动推出选择这个 token 会提高最终成功概率。
+
+论文还指出一个很隐蔽的 self-dependence。如果模型先生成 rollout $y$，再让 Judge 根据 **同一个 $y$** 写 critique $c(y)$，最后又用 $c(y)$ 去给 $y$ 的 token 打分，那么：
+
+$$
+y\rightarrow c(y)\rightarrow \text{score}(y,c(y))
+$$
+
+rollout 同时决定了被评分内容和评分上下文。一个 token 可能获得高分，只是因为 critique 正好在描述它，而不是因为它对任务成功有价值。作者提出 cross-fitting：用**另一条同题 rollout** 生成 feedback，再给当前 rollout 评分，可以消掉这种直接自依赖；但这仍不保证 score 有价值。
+
+### 实验结果很值得警惕
+
+在 **gpt-oss-20b + AIME 2025** 的 matched 实验里，实现的 additive token score 对正确／错误 trajectory 的区分能力几乎就是随机：
+
+$$
+AUC=0.505
+$$
+
+控制长度后甚至轻微偏向错误 trajectory。
+
+更严重的是训练结果：
+
+$$
+\text{Outcome-only}=64.2\%
+$$
+
+而五种使用 token score 的 variant 只有：
+
+$$
+24.2\%\sim33.9\%
+$$
+
+也就是不是“没提升”，而是**明显把 policy 训练坏了**。
+
+## 为什么重要
+
+这对 Agent RL / OPSD 是一个非常必要的概念清理。
+
+近期大量工作正在尝试：
+
+$$
+\text{terminal reward}
+\rightarrow
+\text{dense token credit}
+$$
+
+方向没问题，但“dense”并不意味着“credit”。
+
+尤其是以下逻辑不能再直接成立：
+
+$$
+\text{Teacher 看到了正确答案}
+$$
+
+$$
+\Downarrow
+$$
+
+$$
+\text{Teacher 更喜欢的 token}
+$$
+
+$$
+\Downarrow
+$$
+
+$$
+\text{这个 token 应该获得更大的 RL advantage}
+$$
+
+最后一步需要单独证明。
+
+论文自己也强调，这是 **non-equivalence，不是 impossibility**：如果 likelihood ratio 真来自一致的 success/failure outcome conditional，它可以有严格的 credit interpretation；问题在于任意自由文本 critique、rubric 或 solution context 并不会天然继承这个性质。
+
+## 可信度与局限
+
+不要反过来得出：
+
+> “privileged token credit 已经被证伪。”
+
+证据还远没有这么强。实验只测试一个 20B 模型、AIME 2025 和一套具体 feedback/scoring 实现。它能证明的是：
+
+> **privileged likelihood 不是 value 的数学同义词，而且一个看起来结构合理的实现可以实际严重失败。**
+
+它没有证明 FACTOR、AgentOPSD、DASH、RLCSD 等所有 outcome-anchored 或 privileged-information 方法都会失败；事实上论文专门区分了这些训练目标。
+
+## 最值得继续追踪
+
+接下来最重要的实验不应该是再发明一个新 token weighting function，而是直接做 **interventional validation**：
+
+$$
+v_a,v_b
+$$
+
+如果 scorer 认为：
+
+$$
+d(s,v_a)>d(s,v_b)
+$$
+
+那么真的分别强制采用 $v_a/v_b$，随后从相同 policy continuation 多次 rollout：
+
+$$
+\hat Q(s,v_a)
+\stackrel{?}{>}
+\hat Q(s,v_b)
+$$
+
+只有这层关系成立，才开始接近“credit”而不是“Teacher preference”。
+
+**原始来源：论文。**
+
+---
+
+# 2. TIDE：OPSD 的另一个问题——Teacher 想教的 Token，Student 根本采不到
+
+今天恰好还有一篇论文能防止我们把上面的负结果过度外推。
+
+## 发生了什么
+
+《**Mismatch Matters: On-Policy Distillation Beyond Token Agreement**》发现 OPD 中有两种不同的 mismatch：
+
+### Student-excess
+
+Student 生成了一个 token：
+
+$$
+\pi(v\mid s)\gg0
+$$
+
+但 Teacher 几乎认为它不可能：
+
+$$
+q(v\mid s)\approx0
+$$
+
+于是 log-ratio correction 容易爆炸，训练变得不稳定。
+
+### Student-deficit
+
+Teacher 明明强烈希望生成某个 token：
+
+$$
+q(v^\star\mid s)\gg0
+$$
+
+但 Student 几乎从来不采：
+
+$$
+\pi(v^\star\mid s)\approx0
+$$
+
+而标准 on-policy distillation 主要训练**Student 实际采样出来的 token**，所以 Teacher 最重要的 reasoning pattern 反而永远进不了训练信号。
+
+TIDE 分别处理两端：用 bounded Hellinger shaping 抑制严重 excess，同时直接把 Teacher top-K token 的 deficient probability mass 注入训练，不要求 Student 先偶然采到它。
+
+## 结果
+
+在 Teacher–Student mismatch 最严重的设置中：
+
+$$
+\text{OPD Avg@8}=6.9\%
+$$
+
+$$
+\text{TIDE Avg@8}=20.3\%
+$$
+
+同时平均输出长度缩短 **3.6 倍**，格式失败明显减少。论文已经公开代码。
+
+## 为什么重要
+
+把它和上一节放在一起看，今天可以得到一个很清晰的区分：
+
+$$
+\boxed{\text{Credit Assignment}\neq\text{Distribution Distillation}}
+$$
+
+“Privileged Likelihood”论文问的是：
+
+> 这个 likelihood difference 有没有资格被叫做 **task value / credit**？
+
+TIDE 问的是：
+
+> 如果目标本来就是让 Student 更好地匹配 Teacher，现有 OPD 有没有正确覆盖 Teacher–Student mismatch？
+
+这是两个完全不同的问题。
+
+TIDE 的结果并不反驳第一篇论文，因为它无需声称：
+
+$$
+\text{Teacher preference}=\text{RL action value}
+$$
+
+它只需要证明新的 distillation geometry 比原来的 OPD 更能传递 Teacher 分布。
+
+## 可信度与局限
+
+目前仍主要是 **Qwen3 + 数学推理**。尤其亮眼的 6.9→20.3 来自强 mismatch 条件，因此不能默认同样幅度会出现在能力已经接近的 Teacher–Student pair，更不能直接外推到 tool Agent。
+
+另外，如果 Teacher 本身在某个 state 上判断错了，TIDE 只是更有效率地把 Teacher 的偏好传给 Student；它并没有解决 Teacher correctness。
+
+## 最值得继续追踪
+
+我会特别关注：
+
+$$
+\text{TIDE}+\text{verifier/outcome gate}
+$$
+
+即 Teacher top-K injection 之前，先判断该 state 的 Teacher guidance 是否与真正 outcome 信号一致。
+
+这可能比“所有位置无条件 distill”更适合后训练系统。
+
+**原始来源：论文与官方代码。**
+
+---
+
+# 3. OEO：Self-Evolving Agent 的固定优化 Pipeline 可能只是一种能力补丁
+
+## 发生了什么
+
+微软研究团队的《**Rethinking Self-Evolving Agents**》提出 Open-Ended Optimization（OEO）。
+
+传统 self-evolving 系统通常由框架规定：
+
+$$
+\text{collect evidence}
+\rightarrow
+\text{reflect}
+\rightarrow
+\text{edit Skill}
+\rightarrow
+\text{evaluate}
+\rightarrow
+\text{select}
+\rightarrow
+\text{stop}
+$$
+
+OEO 只固定“优化合同”：
+
+- objective；
+- 允许的 interaction；
+- resource budget；
+- data boundary；
+- evaluator；
+- sealed evaluation。
+
+至于**怎么实验、什么时候修改、保留哪个候选、什么时候停止**，都交给 optimizer model 在线决定。
+
+使用 GPT-5.5 作为 optimizer 时，在 8 个 benchmark-target settings、14 次 head-to-head 比较中：
+
+- OEO 12 胜；
+- 1 平；
+- 1 次仅落后 0.21pp；
+
+同时 median target-interaction token budget 只有 SkillOpt 的 **34.3%**。作者还做了 zero-interaction one-shot rewrite control，说明结果不是因为 GPT-5.5 第一次就“凭常识写出了更好的 Skill”。
+
+## 为什么重要
+
+最近 Self-Evolving Agent 的研究经常把某个固定 evolution algorithm 本身当成核心贡献：
+
+$$
+\text{Reflect}
+\rightarrow
+\text{Critique}
+\rightarrow
+\text{Mutate}
+\rightarrow
+\text{Replay}
+$$
+
+但随着 optimizer model 变强，这些流程有可能逐渐变成一种人为约束。
+
+更一般的视角可能是：
+
+$$
+\boxed{\text{固定约束}+\text{开放式优化 policy}}
+$$
+
+真正必须固定的是：
+
+- 数据边界；
+- evaluator；
+- safety constraint；
+- budget；
+- hidden test。
+
+而“怎么优化”本身也可以由模型规划。
+
+## 但这里有个很重要的反例
+
+**换成中等能力 optimizer 后，SkillOpt 又胜过 OEO；更弱模型甚至无法通过原始 OEO interface 正常优化。**
+
+所以这篇论文并没有证明：
+
+> “固定 Self-Evolution pipeline 已经没用了。”
+
+更准确的结论是：
+
+$$
+\boxed{\text{Prescribed Pipeline 是 capability-dependent scaffold}}
+$$
+
+模型越弱，显式分解：
+
+$$
+diagnose\rightarrow edit\rightarrow validate
+$$
+
+越重要。
+
+模型越强，它越可能自己发现这个过程——或者发现更好的过程。
+
+## 可信度与局限
+
+另一个容易误读的数字是 **34.3%**：这是 target-interaction token budget，不等于整个系统总 FLOPs、总推理费用或 wall-clock 都只有 34.3%。强 optimizer 本身的推理开销仍需要单独核算。
+
+而且当前优化对象仍以 persistent natural-language artifact 为主，还不能直接说明完全开放的代码 Harness、模型架构或 RL algorithm 搜索也能得到相同结论。
+
+## 最值得继续追踪
+
+真正有意思的下一步是：
+
+$$
+\text{OEO}\times\text{Hidden Test}\times\text{Regression Gate}
+$$
+
+如果一个 optimizer 可以自由设计自己的实验过程，但无法看到 sealed test，而且生成的改进仍能跨任务、跨模型保持收益，那才更接近可信的 autonomous research / self-evolution。
+
+**原始来源：论文。**
+
+---
+
+# 4. KVDiagnosis：KV Cache Compression 不该只看“平均还能剩多少分”
+
+## 发生了什么
+
+KVDiagnosis 做了一件我认为长上下文 Infra 很需要的事：
+
+不再比较：
+
+$$
+\text{FullCache Accuracy}=X
+$$
+
+$$
+\text{Compressed Accuracy}=X-\Delta
+$$
+
+而是对每种 compressor 独立寻找：
+
+$$
+\text{FullCache Correct}\rightarrow\text{Compressed Wrong}
+$$
+
+即 **C→W failure pair**。
+
+Qwen3-8B 上，他们跑了：
+
+- 4 类 evidence-aware workload；
+- 2,600 个 source；
+- 59,800 次支持的 compressed run；
+- 得到 12,520 个 C→W failure。
+
+一个很有信息量的结果是：
+
+**63.2% 的失败具有低或不完整的 evidence coverage。**
+
+换句话说，很多压缩失败并不是模型“拿到了证据却理解错”，而是 compression policy 根本没有把需要的信息有效保留下来。
+
+### 更强的证据来自干预
+
+作者挑出 96 个可复现的 low-EAR failure，对 evidence attention 人为提高 4 倍：
+
+$$
+29.2\%
+$$
+
+的失败被修复。
+
+而 count-matched sham intervention 只有：
+
+$$
+6.3\%
+$$
+
+对应成功样本上的 degradation 只有：
+
+$$
+3.3\%
+$$
+
+这不能完全证明因果机制已经解决，但至少比“attention map 看起来变小了，所以我们觉得是这里的问题”强得多。
+
+## 为什么重要
+
+两个 KV compressor 完全可能：
+
+$$
+\text{LongBench Average}\approx\text{same}
+$$
+
+却有：
+
+$$
+F_A\cap F_B
+$$
+
+非常小。
+
+对生产系统来说，平均分并不是全部。
+
+如果方法 A 经常破坏：
+
+- 数字；
+- 代码定义；
+- system instruction；
+
+而方法 B 经常破坏：
+
+- 多跳 evidence；
+- long-distance relation；
+
+即使平均 Accuracy 相同，它们的安全性和适用流量也完全不同。
+
+因此更合理的评测单位开始变成：
+
+$$
+(\text{request},\text{FullCache output},\text{Compressed output},\text{failure diagnostics})
+$$
+
+而不是一个模型级单一分数。
+
+## 可信度与局限
+
+目前最深入的诊断仍集中于 Qwen3-8B；29.2% 的 intervention result 又来自经过筛选的 96 个 low-EAR failure，不能外推为：
+
+> “把 attention 拉高就能修复 29% 的 KV compression 问题。”
+
+但这套 benchmark methodology 本身很值得采用。
+
+更值得肯定的是，论文同时公开了代码和数据，并明确以 per-source FullCache 为 control，而不是拿某个 compressor 的 failure set 去评价另一个 compressor。
+
+## 最值得继续追踪
+
+下一步我会看三件事：
+
+$$
+\text{KV quantization}+\text{eviction}+\text{prefix reuse}
+$$
+
+联合发生时的 failure identity。
+
+现实 Serving 往往不是单独使用一个 compression 算法，而是同时存在 KV 量化、Prefix Cache、offload、eviction 和 continuous batching；它们的交互错误可能远大于单算法 benchmark。
+
+**原始来源：论文与代码/数据。**
+
+---
+
+# 5. 推荐系统｜DREAM + MetaStrategy：LLM Agent 最现实的位置可能是 Ranking 之上的 Control Plane
+
+今天推荐系统方向有两篇来自淘宝生产系统的工作值得放在一起看。
+
+## DREAM：不替掉召回排序，而是在上面加一个策略控制层
+
+DREAM 并没有尝试：
+
+$$
+\text{LLM}\rightarrow\text{直接输出推荐列表}
+$$
+
+而是保留已有：
+
+$$
+Retrieval\rightarrow Ranking\rightarrow Re-ranking
+$$
+
+再加入一个 Agentic Meta Control Layer。
+
+系统先通过多层 Intent Engine 把行为信号整理为 structured intent，再由 Meta Engine 做：
+
+$$
+M1:\text{intent summarization}
+$$
+
+$$
+M2:\text{strategy planning}
+$$
+
+$$
+M3:\text{parameter translation}
+$$
+
+最后通过带 whitelist、范围限制和 fallback 的统一出口，将策略作用到成熟推荐 pipeline。边云 trigger 还把需要上传/推理的信号压到约 **8.7%**。
+
+淘宝首页的大规模 A/B 中，仅控制 re-ranking：
+
+- IPV +2.06%
+- Core IPV +2.39%
+- GMV +0.88%
+
+扩展至 fine ranking 后：
+
+- IPV +2.71%
+- Core IPV +3.06%
+- GMV +1.31%
+
+PV 均提升超过 1%。
+
+## MetaStrategy：LLM 不生成 Item，而生成“可编译策略”
+
+MetaStrategy 把这个思路进一步做得非常具体。
+
+LLM 输出 typed JSON：
+
+$$
+z=(\text{objective weights},\text{category prefs},\text{content prefs},\text{constraints},\text{position policy})
+$$
+
+然后由**确定性的 validator + compiler** 将策略编译成一个 Generator，与现有方案在 Generator-Evaluator 架构下竞争。
+
+这有个很关键的工程性质：
+
+> LLM 只负责提出受限策略，真正执行的仍然是 deterministic system。
+
+而且 LLM inference 采用 diff-triggered **nearline** 生成，不在 synchronous ranking hot path 上。
+
+七天 user-randomized A/B：
+
+- Click PV +2.11%
+- IPV +3.12%
+- Transaction Amount +2.83%
+
+论文报告这些提升具有统计显著性，并称线上没有观察到 RT 增加。
+
+## 为什么重要
+
+这比“LLM 直接做 Recommendation”更可能是近期真正可落地的路径：
+
+$$
+\boxed{LLM:\text{理解意图 + 产生策略}}
+$$
+
+$$
+\boxed{传统推荐模型:\text{高吞吐预测}}
+$$
+
+$$
+\boxed{规则/Compiler:\text{保证执行边界}}
+$$
+
+LLM 不需要在每个 candidate 上做 expensive inference，也不需要承担毫秒级 ranking SLA。
+
+从系统架构角度，它更像：
+
+$$
+\text{LLM as policy compiler}
+$$
+
+而不是：
+
+$$
+\text{LLM as ranker}
+$$
+
+这是今天这两项工作最值得借鉴的地方。
+
+## 可信度与局限
+
+线上随机 A/B 的证据等级明显高于普通离线推荐论文，但仍然需要克制解释。
+
+DREAM 是一个**高度复合系统**：Intent、Memory、MetaModel、规则、offline simulation、online reward loop 一起变化。线上 uplift 无法告诉我们：
+
+> 到底多少来自 LLM reasoning，多少来自更好的实时特征、规则治理或策略搜索。
+
+而且公开技术报告提供的是相对 uplift，外部无法复现淘宝的数据分布和基础 ranking stack。MetaStrategy 的七日 user-randomized A/B 更干净一些，但仍然只是单一业务生态内的公司自报实验。
+
+## 最值得继续追踪
+
+对推荐系统，我现在最想看到的不是更多 CTR uplift，而是：
+
+$$
+\text{Strategy Churn}
+$$
+
+$$
+\text{LLM Strategy Acceptance Rate}
+$$
+
+$$
+\text{Compiler Rejection Rate}
+$$
+
+$$
+\text{Offline Replay}\rightarrow\text{Online Lift Correlation}
+$$
+
+以及不同用户场景到底有多少 request 真正需要 LLM 策略更新。
+
+如果大部分时间策略稳定，那么未来可能进一步变成：
+
+$$
+\text{稀疏 LLM planning}+\text{高频 lightweight policy execution}
+$$
+
+这会比 per-request LLM recommendation 更经济。
+
+**原始来源：DREAM 与 MetaStrategy。**
+
+---
+
+# 量化补充｜ICBQ：极低比特 PTQ 也许不该“一路扫到底就结束”
+
+今天量化方向比较值得扫一眼的是 **From Sweep to Seam: Interleaved Cross-Block PTQ**。
+
+传统两 Block cross-block quantization 从浅层一路向深层 sweep，一旦早期 boundary 被量化，后续不再回头。ICBQ 的改动非常简单：每个相邻 chunk 的 seam pair **再 revisit 一次**，仍然复用原来的 two-block reconstruction objective 和 calibration data。论文报告它能降低 ternary quantization perplexity，并在 sequential baseline 已严重崩溃的配置上恢复到有限 perplexity；同样思路也适用于 3-bit / 2-bit GPTQ。
+
+这篇目前更像一个有意思的 optimization-schedule observation，而不是部署范式变化。公开摘要还不足以证明它在主流 W4A16 / W4A8 场景有明显工程价值；它的价值更可能集中在 **2-bit / ternary 极低比特区间**。如果后续没有完整 wall-clock quantization cost、downstream accuracy 和 kernel-side serving 数据，不应把“PTQ 更好”解读成“推理更快”。
+
+---
+
+# 今日值得收藏的代码与学习资源
+
+**TIDE 官方实现**今天最值得直接读训练代码。它能很好地帮助理解 standard sampled-token OPD 为什么无法看到 student-deficit token，以及 top-K teacher injection 怎么进入 loss；论文已链接公开代码。
+
+**KVDiagnosis 的代码与 failure dataset**比再下载一个新的 KV compressor 更有长期价值。它提供 FullCache-paired failure records 和 attention / likelihood / cache diagnostics，适合拿现有 SnapKV、TOVA、StreamingLLM 或自研 KV policy 做真正的 regression suite。
+
+另一个值得关注的是 **SHE：Safety Harness Evolution**。它把 safety harness 拆成 System Prompt、Rule Bank、Safety Memory、Tool Policy 四个可独立演化的 artifact，根据 rollout failure 做 attribution 后只修改责任组件。Agent-SafetyBench 上 evolved harness 的平均 ASR 从 8.6% 降至 5.5%，同时 utility 从 33.5% 升到 47.6%；在未参与演化的 AgentHarm 上也报告了更低 Harm Score，并跨多种 agent model 做了直接迁移。
+
+SHE 最值得借鉴的不是“自动修改安全 Prompt”，而是：
+
+$$
+\boxed{\text{failure attribution}\rightarrow\text{localized artifact update}\rightarrow\text{safety + utility regression gate}}
+$$
+
+这套结构同样可以迁移到普通 Agent Harness 优化。
+
+---
+
+# X.com｜近 24 小时技术信号
+
+今天我仍然**没有找到可以可靠列成“近 24 小时高热度 AI 技术线程”的样本**。
+
+我分别针对今天最值得关注的 `Privileged Likelihood`、`Mismatch Matters / TIDE`、`KVDiagnosis`、`DREAM` 和 OEO 做了 X 限域检索，没有拿到同时满足下面四项的 individual post：
+
+- 原作者／官方项目身份可核验；
+- 明确属于最近 24 小时；
+- 浏览、点赞、转发等互动量可比较；
+- 正文有超过论文摘要的技术增量。
+
+继续硬列“X 热门 Top 5”会制造不存在的精度。
+
+这里的技术原因也比较明确：X 自己提供 **Top** 和 **Latest** 两种站内搜索视图，Latest 才是按时间过滤后的帖子流，而 Top 还会结合 engagement、relevance 和 quality 信号；普通公开网页索引无法可靠重建这两个实时结果。
+
+因此今天 **X 栏不排名**。值得手动跟踪的关键词是：
+
+`privileged likelihood token credit`、`TIDE OPD`、`open-ended optimization agent`、`KVDiagnosis`、`MetaStrategy recommendation`。
+
+---
+
+# 今日最值得花 30 分钟阅读的一项
+
+## **Privileged Likelihood Is Not Automatically Value**
+
+今天我会优先读它。
+
+原因不是它取得了什么最高分，而是它给近期 **OPSD / Agent RL token credit** 建立了一个很有用的证伪框架。
+
+30 分钟建议这样分：
+
+**前 8 分钟：Q1。**重点理解为什么：
+
+$$
+\Delta\log p_{\text{teacher}}
+$$
+
+与：
+
+$$
+Q^\pi(s,a)
+$$
+
+在数学上不是同一个对象，以及什么条件下 likelihood ratio 才可能拥有真正的 outcome interpretation。
+
+**接下来 7 分钟：Q2。**仔细看 own-rollout feedback 的 self-dependence，以及 cross-fitting 能解决什么、不能解决什么。
+
+**再 8 分钟：Q3。**看为什么“token weight 都是正的”“总权重不变”也不能推出 parameter gradient 方向正确。
+
+**最后 7 分钟：实验。**重点看 AUC=0.505 与 outcome-only 64.2% vs token variants 24.2–33.9%，然后提醒自己：这是一个具体实现的反例，而不是整个 privileged distillation 范式的终审判决。
+
+今天最值得记住的一句话是：
+
+$$
+\boxed{\text{一个信号可以非常 dense、非常稳定、甚至非常“聪明”，但仍然不是 credit。}}
+$$
+
+---
+
+# 今日可立即实践的一件事
+
+对任何现有的 **token-level reward / OPSD / hindsight credit** 实现，在继续训练前加一个 **Three-Check Credit Audit**。
+
+先完全不更新模型，从 held-out rollout 中记录每个 token score：
+
+$$
+d_t
+$$
+
+然后做三个检查。
+
+**Check 1：Outcome association。**
+
+先做最便宜的筛选：
+
+$$
+D(\tau)=\frac1T\sum_t d_t
+$$
+
+然后计算：
+
+$$
+AUC[D(\tau),U(\tau)]
+$$
+
+其中 $U(\tau)$ 是真正 verifier outcome。
+
+这**不能证明 token credit 正确**，但如果：
+
+$$
+AUC\approx0.5
+$$
+
+那已经没有理由直接拿它去训练。
+
+**Check 2：Cross-fit feedback。**
+
+如果原本：
+
+```text
+rollout A
+→ critique A
+→ critique A 给 rollout A 打分
+```
+
+增加：
+
+```text
+rollout A
+→ critique A
+
+rollout B
+→ 使用 critique A 给 rollout B 打分
+```
+
+比较 own-feedback 与 cross-fit score 的分布、ranking 和长度相关性。
+
+如果 score 在 cross-fit 后大幅崩掉，说明之前相当一部分信号来自：
+
+$$
+\text{“这段 critique 很会描述这条 rollout”}
+$$
+
+而不是：
+
+$$
+\text{“这个行为更可能成功”}
+$$
+
+**Check 3：Outcome-only matched control。**
+
+正式训练时必须保留：
+
+$$
+\text{GRPO / outcome-only}
+$$
+
+作为完全匹配：
+
+- rollout budget；
+- batch；
+- optimizer；
+- token budget；
+- training steps；
+
+的 control。
+
+最后报告：
+
+$$
+\Delta_{\text{credit}}=Acc_{\text{token-credit}}-Acc_{\text{outcome-only}}
+$$
+
+同时监控：
+
+$$
+\text{response length},\quad KL,\quad \text{format failure},\quad Pass@K
+$$
+
+而不是只看 train reward。
+
+如果出现：
+
+$$
+AUC\approx0.5
+$$
+
+或者：
+
+$$
+\Delta_{\text{credit}}<0
+$$
+
+就应该先停止训练、重新定义 score，而不是继续调 temperature、clip range 或 loss coefficient。
+
+这个审计几乎不需要额外模型训练，却能提前发现一种目前 Agent/LLM 后训练里相当昂贵的错误：**把“Teacher 有反应”误认为“Teacher 给出了正确的信用分配”。**
+
+---
+
+## 参考来源
+
+1. [Privileged Likelihood Is Not Automatically Value: Three Checks for Token Credit in On-Policy Self-Distillation](https://arxiv.org/abs/2608.09263)
+2. [Mismatch Matters: On-Policy Distillation Beyond Token Agreement](https://arxiv.org/abs/2608.09836)
+3. [TIDE 官方代码](https://github.com/yzc-666/TIDE)
+4. [Rethinking Self-Evolving Agents: Do We Still Need Prescribed Optimization Pipelines?](https://arxiv.org/abs/2608.09629)
+5. [KVDiagnosis: A Diagnostic Benchmark for KV-Cache Compression in Long-Context Language Models](https://arxiv.org/abs/2608.09412)
+6. [KVDiagnosis 官方代码与数据](https://github.com/ChosenQC/KVDiagnosis)
+7. [DREAM Technical Report](https://arxiv.org/abs/2608.09408)
+8. [MetaStrategy: Generative Ranking with Executable LLM Strategies](https://arxiv.org/abs/2608.09440)
+9. [From Sweep to Seam: Interleaved Cross-Block Post-Training Quantization](https://arxiv.org/abs/2608.09595)
+10. [SHE: Trajectory-driven Safety Harness Evolution for LLM Agents](https://arxiv.org/abs/2608.09885)

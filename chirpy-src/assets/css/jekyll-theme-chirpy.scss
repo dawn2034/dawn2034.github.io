@@ -1,0 +1,50 @@
+---
+---
+
+@use 'abstracts/variables' with (
+  $theme: '{{ site.theme_mode }}'
+);
+
+/* prettier-ignore */
+@use 'main
+{%- if jekyll.environment == 'production' -%}
+  .bundle
+{%- endif -%}
+';
+
+/* DailyEpoch preview refinements */
+.content > h1:first-child {
+  display: none;
+}
+
+article .content {
+  font-size: 1.03rem;
+  line-height: 1.85;
+}
+
+article .content > p:first-of-type {
+  margin: 0 0 2rem;
+  padding: 1rem 1.15rem;
+  border-left: 4px solid var(--link-color);
+  border-radius: .45rem;
+  background: var(--card-bg);
+  box-shadow: inset 0 0 0 1px var(--main-border-color);
+}
+
+article .content h2 {
+  margin-top: 2.5rem;
+}
+
+article .content h3 {
+  margin-top: 2rem;
+}
+
+article .content table {
+  font-size: .95rem;
+}
+
+article .content mjx-container[display='true'] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: .2rem 0;
+}
