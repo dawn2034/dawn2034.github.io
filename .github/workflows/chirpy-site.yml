@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - agent/migrate-site-to-chirpy
     paths:
       - 'DailyEpoch/*.md'
       - 'chirpy-src/**'
