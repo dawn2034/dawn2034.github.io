@@ -1,5 +1,0 @@
-User-agent: *
-
-Disallow: /norobots/
-
-Sitemap: https://dawn2034.github.io/chirpy-preview/sitemap.xml

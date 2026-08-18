@@ -1,4 +1,5 @@
 User-agent: *
-Allow: /
+
+Disallow: /norobots/
 
 Sitemap: https://dawn2034.github.io/sitemap.xml
