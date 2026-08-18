@@ -12,17 +12,18 @@
 {%- endif -%}
 ';
 
-/* Long-form DailyEpoch refinements */
-.content > h1:first-child {
+/* Long-form article refinements. Scope these to post pages so homepage excerpts
+   keep Chirpy's native line-clamp and card layout. */
+article[data-toc] .content > h1:first-child {
   display: none;
 }
 
-article .content {
+article[data-toc] .content {
   font-size: 1.03rem;
   line-height: 1.85;
 }
 
-article .content > p:first-of-type {
+article[data-toc] .content > p:first-of-type {
   margin: 0 0 2rem;
   padding: 1rem 1.15rem;
   border-left: 4px solid var(--link-color);
@@ -31,19 +32,19 @@ article .content > p:first-of-type {
   box-shadow: inset 0 0 0 1px var(--main-border-color);
 }
 
-article .content h2 {
+article[data-toc] .content h2 {
   margin-top: 2.5rem;
 }
 
-article .content h3 {
+article[data-toc] .content h3 {
   margin-top: 2rem;
 }
 
-article .content table {
+article[data-toc] .content table {
   font-size: .95rem;
 }
 
-article .content mjx-container[display='true'] {
+article[data-toc] .content mjx-container[display='true'] {
   overflow-x: auto;
   overflow-y: hidden;
   padding: .2rem 0;
@@ -51,12 +52,12 @@ article .content mjx-container[display='true'] {
 
 /* Keep dense technical tables readable on narrow screens. */
 @media (max-width: 576px) {
-  article .content {
+  article[data-toc] .content {
     font-size: 1rem;
     line-height: 1.78;
   }
 
-  article .content > p:first-of-type {
+  article[data-toc] .content > p:first-of-type {
     margin-left: -.25rem;
     margin-right: -.25rem;
   }
