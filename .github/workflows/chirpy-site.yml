@@ -139,6 +139,7 @@ jobs:
           git checkout -B master origin/master
 
           rsync -a --delete \
+            --exclude='.git' \
             --exclude='.git/' \
             --exclude='.github/' \
             --exclude='chirpy-src/' \
