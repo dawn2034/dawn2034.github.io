@@ -65,9 +65,6 @@ jobs:
             cp "$src" "chirpy-src/_posts/$(basename "$src")"
           done
 
-          # Chirpy slugifies tag names case-insensitively. Historical posts used
-          # both AutoResearch and Autoresearch, which would generate the same URL.
-          # Normalize only the copied front matter; source Markdown remains intact.
           python3 - <<'PY'
           from pathlib import Path
 
@@ -126,7 +123,9 @@ jobs:
           fi
 
       - name: Publish static site to master
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: >-
+          (github.event_name == 'push' && github.ref == 'refs/heads/master') ||
+          (github.event_name == 'pull_request' && github.head_ref == 'deploy/chirpy-via-pr')
         shell: bash
         run: |
           set -euo pipefail
