@@ -66,8 +66,39 @@ jobs:
             cp "$src" "chirpy-src/_posts/$(basename "$src")"
           done
 
+          # Chirpy slugifies tag names case-insensitively. Historical posts used
+          # both AutoResearch and Autoresearch, which would generate the same URL.
+          # Normalize only the copied front matter; source Markdown remains intact.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          canonical = {
+              'AutoResearch': 'Autoresearch',
+              'autoresearch': 'Autoresearch',
+          }
+
+          for path in Path('chirpy-src/_posts').glob('*.md'):
+              text = path.read_text(encoding='utf-8')
+              if not text.startswith('---\n'):
+                  continue
+              end = text.find('\n---\n', 4)
+              if end < 0:
+                  continue
+              front = text[4:end]
+              for old, new in canonical.items():
+                  front = front.replace(old, new)
+              path.write_text('---\n' + front + text[end:], encoding='utf-8')
+          PY
+
       - name: Build Chirpy
-        run: bundle exec jekyll build --source chirpy-src --destination _site
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle exec jekyll build --source chirpy-src --destination _site 2>&1 | tee /tmp/chirpy-build.log
+          if grep -q 'Conflict: The following destination is shared by multiple files' /tmp/chirpy-build.log; then
+            echo 'Chirpy generated a destination collision.' >&2
+            exit 1
+          fi
         env:
           JEKYLL_ENV: production
 
