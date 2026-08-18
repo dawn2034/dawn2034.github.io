@@ -1,0 +1,117 @@
+theme: jekyll-theme-chirpy
+
+lang: zh-CN
+timezone: Asia/Shanghai
+
+title: 鸣响的杯子
+tagline: AI · LLM · Agent · Recommendation
+description: >-
+  面向 AI、LLM、Agent 与推荐系统的技术博客与每日技术简报。
+
+url: "https://dawn2034.github.io"
+baseurl: ""
+
+github:
+  username: dawn2034
+
+twitter:
+  username:
+
+social:
+  name: 鸣响的杯子
+  email:
+  links:
+    - https://github.com/dawn2034
+
+avatar: "https://avatars.githubusercontent.com/u/26163824?v=4"
+social_preview_image:
+
+theme_mode:
+toc: true
+
+actions:
+  edit_post:
+    enabled: false
+
+comments:
+  provider:
+
+analytics:
+  google:
+    id:
+
+pageviews:
+  provider:
+
+assets:
+  self_host:
+    enabled: false
+
+pwa:
+  enabled: true
+  cache:
+    enabled: true
+
+paginate: 10
+
+kramdown:
+  footnote_backlink: "&#8617;&#xfe0e;"
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: highlight
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true
+      start_line: 1
+
+collections:
+  tabs:
+    output: true
+    sort_by: order
+
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: post
+      comments: false
+      toc: true
+      math: true
+  - scope:
+      path: ""
+      type: tabs
+    values:
+      layout: page
+      permalink: /:title/
+
+sass:
+  style: compressed
+
+compress_html:
+  clippings: all
+  comments: all
+  endings: all
+  profile: false
+  blanklines: false
+  ignore:
+    envs: [development]
+
+exclude:
+  - "*.gem"
+  - "*.gemspec"
+  - README.md
+  - LICENSE
+  - legacy-posts
+  - "*.config.js"
+  - "package*.json"
+
+jekyll-archives:
+  enabled: [categories, tags]
+  layouts:
+    category: category
+    tag: tag
+  permalinks:
+    tag: /tags/:name/
+    category: /categories/:name/

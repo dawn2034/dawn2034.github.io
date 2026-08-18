@@ -1,0 +1,161 @@
+name: Build and Publish Chirpy
+
+on:
+  push:
+    branches:
+      - master
+      - agent/migrate-site-to-chirpy
+    paths:
+      - 'DailyEpoch/*.md'
+      - 'chirpy-src/**'
+      - 'Gemfile'
+      - '.github/workflows/chirpy-site.yml'
+  pull_request:
+    branches:
+      - master
+    paths:
+      - 'DailyEpoch/*.md'
+      - 'chirpy-src/**'
+      - 'Gemfile'
+      - '.github/workflows/chirpy-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chirpy-production
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+
+      - name: Prepare posts
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf chirpy-src/_posts
+          mkdir -p chirpy-src/_posts
+
+          shopt -s nullglob
+          daily_files=(DailyEpoch/20??-??-??.md)
+          if [ ${#daily_files[@]} -eq 0 ]; then
+            echo 'No DailyEpoch posts found.' >&2
+            exit 1
+          fi
+
+          for src in "${daily_files[@]}"; do
+            date="$(basename "$src" .md)"
+            cp "$src" "chirpy-src/_posts/${date}-dailyepoch.md"
+          done
+
+          for src in chirpy-src/legacy-posts/*.md; do
+            cp "$src" "chirpy-src/_posts/$(basename "$src")"
+          done
+
+          # Chirpy slugifies tag names case-insensitively. Historical posts used
+          # both AutoResearch and Autoresearch, which would generate the same URL.
+          # Normalize only the copied front matter; source Markdown remains intact.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          canonical = {
+              'AutoResearch': 'Autoresearch',
+              'autoresearch': 'Autoresearch',
+          }
+
+          for path in Path('chirpy-src/_posts').glob('*.md'):
+              text = path.read_text(encoding='utf-8')
+              if not text.startswith('---\n'):
+                  continue
+              end = text.find('\n---\n', 4)
+              if end < 0:
+                  continue
+              front = text[4:end]
+              for old, new in canonical.items():
+                  front = front.replace(old, new)
+              path.write_text('---\n' + front + text[end:], encoding='utf-8')
+          PY
+
+      - name: Build Chirpy
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle exec jekyll build --source chirpy-src --destination _site 2>&1 | tee /tmp/chirpy-build.log
+          if grep -q 'Conflict: The following destination is shared by multiple files' /tmp/chirpy-build.log; then
+            echo 'Chirpy generated a destination collision.' >&2
+            exit 1
+          fi
+        env:
+          JEKYLL_ENV: production
+
+      - name: Validate generated site
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f _site/index.html
+          test -f _site/assets/css/jekyll-theme-chirpy.css
+          test -f _site/assets/js/dist/theme.min.js
+          test -f _site/DailyEpoch/index.html
+          test -f '_site/2018/09/03/2018年暑期（05.21-08.10）实习总结/index.html'
+
+          source_count=$(find DailyEpoch -maxdepth 1 -type f -name '20??-??-??.md' | wc -l | tr -d ' ')
+          generated_count=$(find _site/DailyEpoch -mindepth 2 -maxdepth 2 -type f -name index.html | wc -l | tr -d ' ')
+          echo "DailyEpoch source posts: $source_count"
+          echo "DailyEpoch generated posts: $generated_count"
+          test "$source_count" = "$generated_count"
+
+          grep -q '鸣响的杯子' _site/index.html
+          grep -q 'DailyEpoch' _site/DailyEpoch/index.html
+
+          if grep -R -l '/chirpy-preview/' _site --include='*.html' --include='*.xml' --include='*.json'; then
+            echo 'Found stale preview URLs in production build.' >&2
+            exit 1
+          fi
+
+      - name: Publish static site to master
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin master
+
+          rm -rf /tmp/chirpy-production
+          git worktree add --detach /tmp/chirpy-production origin/master
+          cd /tmp/chirpy-production
+          git checkout -B master origin/master
+
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='chirpy-src/' \
+            --exclude='DailyEpoch/*.md' \
+            --exclude='Gemfile' \
+            --exclude='README.md' \
+            "$GITHUB_WORKSPACE/_site/" ./
+
+          touch .nojekyll
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo 'Published site is already up to date.'
+            exit 0
+          fi
+
+          git commit -m 'Publish Chirpy site'
+          git push origin HEAD:master
