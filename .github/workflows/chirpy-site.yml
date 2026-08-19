@@ -39,6 +39,10 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # The permanent PR is only a reliable event trigger. Always build the
+          # latest master content so the trigger branch never becomes a stale
+          # snapshot of the blog source.
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref == 'automation/chirpy-publish' && 'master' || github.ref }}
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -69,11 +73,11 @@ jobs:
             cp "$src" "chirpy-src/_posts/$(basename "$src")"
           done
 
-          # Chirpy slugifies tag names case-insensitively. Historical posts used
-          # both AutoResearch and Autoresearch, which would generate the same URL.
-          # Normalize only the copied front matter; source Markdown remains intact.
+          # Normalize copied front matter only. Source Markdown remains intact.
           python3 - <<'PY'
+          from datetime import datetime
           from pathlib import Path
+          import re
 
           canonical = {
               'AutoResearch': 'Autoresearch',
@@ -87,9 +91,34 @@ jobs:
               end = text.find('\n---\n', 4)
               if end < 0:
                   continue
+
               front = text[4:end]
               for old, new in canonical.items():
                   front = front.replace(old, new)
+
+              # A same-day post may carry a local publication time a few minutes
+              # ahead of the UTC Actions runner. Jekyll would silently omit it as
+              # a future post. Normalize only that copied timestamp to midnight;
+              # genuinely future-dated posts remain unpublished.
+              match = re.search(r'^date:\s*(.+?)\s*$', front, flags=re.MULTILINE)
+              if match:
+                  raw = match.group(1).strip().strip('"').strip("'")
+                  try:
+                      published = datetime.strptime(raw, '%Y-%m-%d %H:%M:%S %z')
+                      now = datetime.now(published.tzinfo)
+                      if published.date() == now.date() and published > now:
+                          normalized = published.strftime('%Y-%m-%d 00:00:00 %z')
+                          front = re.sub(
+                              r'^date:\s*.+?\s*$',
+                              f'date: {normalized}',
+                              front,
+                              count=1,
+                              flags=re.MULTILINE,
+                          )
+                          print(f'Normalized same-day future timestamp: {path.name}')
+                  except ValueError:
+                      pass
+
               path.write_text('---\n' + front + text[end:], encoding='utf-8')
           PY
 
@@ -120,6 +149,33 @@ jobs:
           echo "DailyEpoch source posts: $source_count"
           echo "DailyEpoch generated posts: $generated_count"
           test "$source_count" = "$generated_count"
+
+          # Every standalone legacy/report source with an explicit permalink must
+          # produce a static page. This catches silent future-date omissions.
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          missing = []
+          for source in Path('chirpy-src/legacy-posts').glob('*.md'):
+              text = source.read_text(encoding='utf-8')
+              if not text.startswith('---\n'):
+                  continue
+              end = text.find('\n---\n', 4)
+              if end < 0:
+                  continue
+              front = text[4:end]
+              match = re.search(r'^permalink:\s*["\']?(.+?)["\']?\s*$', front, flags=re.MULTILINE)
+              if not match:
+                  continue
+              permalink = match.group(1).strip().strip('"').strip("'")
+              output = Path('_site') / permalink.lstrip('/') / 'index.html'
+              if not output.exists():
+                  missing.append(f'{source}: expected {output}')
+
+          if missing:
+              raise SystemExit('Missing generated legacy/report pages:\n' + '\n'.join(missing))
+          PY
 
           grep -q '鸣响的杯子' _site/index.html
           grep -q 'DailyEpoch' _site/DailyEpoch/index.html
