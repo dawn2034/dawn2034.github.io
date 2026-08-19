@@ -201,7 +201,6 @@ jobs:
           rm -rf /tmp/chirpy-production
           git worktree add --detach /tmp/chirpy-production origin/master
           cd /tmp/chirpy-production
-          git checkout -B master origin/master
 
           rsync -a --delete \
             --exclude='.git' \
