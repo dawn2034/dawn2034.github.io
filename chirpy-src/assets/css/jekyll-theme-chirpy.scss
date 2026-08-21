@@ -12,8 +12,7 @@
 {%- endif -%}
 ';
 
-/* Long-form article refinements. Scope these to post pages so homepage excerpts
-   keep Chirpy's native line-clamp and card layout. */
+/* Long-form article refinements. */
 article[data-toc] .content > h1:first-child {
   display: none;
 }
@@ -50,11 +49,17 @@ article[data-toc] .content mjx-container[display='true'] {
   padding: .2rem 0;
 }
 
-/* High-contrast dark palette inspired by the supplied Hands on Modern RL UI.
-   Chirpy's default dark body text (#afb0b1) is deliberately brighter here so
-   long technical articles remain comfortable to read. */
+/* High-contrast dark palette inspired by Hands on Modern RL.
+   Chirpy 7.6 resolves both manual and system modes onto data-bs-theme. */
 @mixin modern-rl-dark-palette {
   color-scheme: dark;
+
+  /* Bootstrap-level variables used by some components. */
+  --bs-body-bg: #151a24;
+  --bs-body-color: #e5e7eb;
+  --bs-secondary-color: #a9b1bc;
+  --bs-tertiary-color: #8f99a8;
+  --bs-border-color: #2d3542;
 
   /* Surfaces */
   --main-bg: #151a24;
@@ -65,6 +70,11 @@ article[data-toc] .content mjx-container[display='true'] {
   --card-hover-bg: #222a37;
   --card-shadow: rgb(5 8 13 / 38%) 0 8px 24px 0,
     rgb(74 86 105 / 18%) 0 0 0 1px;
+  --menu-bg: #202630;
+  --menu-border-color: rgb(74 86 105 / 65%);
+  --menu-shadow-color: rgb(5 8 13 / 45%);
+  --menu-active-color: #edf1f7;
+  --menu-highlight-bg: rgb(111 140 255 / 12%);
 
   /* Typography */
   --text-color: #e5e7eb;
@@ -94,7 +104,7 @@ article[data-toc] .content mjx-container[display='true'] {
   --sidebar-btn-color: #b7bec8;
   --avatar-border-color: rgb(225 229 235 / 80%);
 
-  /* Top bar / search */
+  /* Topbar / search */
   --topbar-bg: rgb(21 26 36 / 88%);
   --topbar-text-color: #d8dde5;
   --search-border-color: #394250;
@@ -160,68 +170,40 @@ article[data-toc] .content mjx-container[display='true'] {
   );
 }
 
-/* Explicit dark mode. */
-html[data-mode='dark'] {
+/* Chirpy 7.6 uses data-bs-theme for the resolved theme in both manual and system mode. */
+:root[data-bs-theme='dark'] {
   @include modern-rl-dark-palette;
 }
 
-/* System dark mode: Chirpy clears the explicit data-mode attribute for system. */
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode='light']) {
-    @include modern-rl-dark-palette;
-  }
-}
-
-/* Improve syntax-highlight contrast without making code neon. */
-html[data-mode='dark'] .highlight,
-html[data-mode='dark'] .highlight .w {
+/* Extra contrast for syntax-highlighted code. */
+:root[data-bs-theme='dark'] .highlight,
+:root[data-bs-theme='dark'] .highlight .w {
   color: #e1e6ed;
   background-color: #0f1218;
 }
 
-html[data-mode='dark'] .highlight .c,
-html[data-mode='dark'] .highlight .ch,
-html[data-mode='dark'] .highlight .cd,
-html[data-mode='dark'] .highlight .cm,
-html[data-mode='dark'] .highlight .cpf,
-html[data-mode='dark'] .highlight .c1,
-html[data-mode='dark'] .highlight .cs {
+:root[data-bs-theme='dark'] .highlight .c,
+:root[data-bs-theme='dark'] .highlight .ch,
+:root[data-bs-theme='dark'] .highlight .cd,
+:root[data-bs-theme='dark'] .highlight .cm,
+:root[data-bs-theme='dark'] .highlight .cpf,
+:root[data-bs-theme='dark'] .highlight .c1,
+:root[data-bs-theme='dark'] .highlight .cs {
   color: #929cab;
 }
 
-html[data-mode='dark'] .highlight .o,
-html[data-mode='dark'] .highlight .ow,
-html[data-mode='dark'] .highlight .p,
-html[data-mode='dark'] .highlight .pi {
+:root[data-bs-theme='dark'] .highlight .o,
+:root[data-bs-theme='dark'] .highlight .ow,
+:root[data-bs-theme='dark'] .highlight .p,
+:root[data-bs-theme='dark'] .highlight .pi {
   color: #dce2e9;
 }
 
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode='light']) .highlight,
-  html:not([data-mode='light']) .highlight .w {
-    color: #e1e6ed;
-    background-color: #0f1218;
-  }
-
-  html:not([data-mode='light']) .highlight .c,
-  html:not([data-mode='light']) .highlight .ch,
-  html:not([data-mode='light']) .highlight .cd,
-  html:not([data-mode='light']) .highlight .cm,
-  html:not([data-mode='light']) .highlight .cpf,
-  html:not([data-mode='light']) .highlight .c1,
-  html:not([data-mode='light']) .highlight .cs {
-    color: #929cab;
-  }
-
-  html:not([data-mode='light']) .highlight .o,
-  html:not([data-mode='light']) .highlight .ow,
-  html:not([data-mode='light']) .highlight .p,
-  html:not([data-mode='light']) .highlight .pi {
-    color: #dce2e9;
-  }
+/* Bootstrap's .text-muted can otherwise stay darker than the Chirpy body text. */
+:root[data-bs-theme='dark'] .text-muted {
+  color: var(--text-muted-color) !important;
 }
 
-/* Keep dense technical tables readable on narrow screens. */
 @media (max-width: 576px) {
   article[data-toc] .content {
     font-size: 1rem;
