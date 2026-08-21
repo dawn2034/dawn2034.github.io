@@ -50,6 +50,177 @@ article[data-toc] .content mjx-container[display='true'] {
   padding: .2rem 0;
 }
 
+/* High-contrast dark palette inspired by the supplied Hands on Modern RL UI.
+   Chirpy's default dark body text (#afb0b1) is deliberately brighter here so
+   long technical articles remain comfortable to read. */
+@mixin modern-rl-dark-palette {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --main-bg: #151a24;
+  --mask-bg: #3b4350;
+  --main-border-color: #2d3542;
+  --card-bg: #1a202b;
+  --card-header-bg: #202632;
+  --card-hover-bg: #222a37;
+  --card-shadow: rgb(5 8 13 / 38%) 0 8px 24px 0,
+    rgb(74 86 105 / 18%) 0 0 0 1px;
+
+  /* Typography */
+  --text-color: #e5e7eb;
+  --text-muted-color: #a9b1bc;
+  --text-muted-highlight-color: #c8ced7;
+  --heading-color: #f3f4f6;
+  --label-color: #d4d8df;
+  --blockquote-border-color: #495466;
+  --blockquote-text-color: #c9cfd8;
+  --post-list-text-color: #dde1e7;
+
+  /* Accent */
+  --link-color: #6f8cff;
+  --link-underline-color: #435ca8;
+  --toc-highlight: #7894ff;
+  --footnote-target-bg: #334a93;
+
+  /* Sidebar */
+  --site-title-color: #f1f3f5;
+  --site-subtitle-color: #aeb5c0;
+  --sidebar-bg: #1b1d24;
+  --sidebar-border-color: #2a303a;
+  --sidebar-muted-color: #b1b8c3;
+  --sidebar-active-color: #f7f8fa;
+  --sidebar-hover-bg: #242a34;
+  --sidebar-btn-bg: #232832;
+  --sidebar-btn-color: #b7bec8;
+  --avatar-border-color: rgb(225 229 235 / 80%);
+
+  /* Top bar / search */
+  --topbar-bg: rgb(21 26 36 / 88%);
+  --topbar-text-color: #d8dde5;
+  --search-border-color: #394250;
+  --search-icon-color: #a5adba;
+  --input-focus-border-color: #7188db;
+
+  /* Controls */
+  --button-bg: #202630;
+  --btn-border-color: #343d4a;
+  --btn-backtotop-color: #d9dee6;
+  --btn-backtotop-border-color: #303845;
+  --btn-patinator-text-color: #d4d9e1;
+  --btn-paginator-hover-color: #252c37;
+  --checkbox-color: #a6afbc;
+  --checkbox-checked-color: #6f8cff;
+
+  /* Tables / tags / archive */
+  --tb-odd-bg: #1b222d;
+  --tb-even-bg: #171d27;
+  --tb-border-color: #303947;
+  --tag-hover: #293448;
+  --tag-border: #46536a;
+  --tag-shadow: #111720;
+  --search-tag-bg: #202630;
+  --categories-border: rgb(79 90 107 / 62%);
+  --categories-hover-bg: #2b3441;
+  --timeline-node-bg: #a5adba;
+  --timeline-color: #4b5666;
+  --timeline-year-dot-color: #4b5666;
+  --dash-color: #4b5666;
+
+  /* Prompts */
+  --prompt-text-color: #d8dde5;
+  --prompt-tip-bg: rgb(27 75 49 / 72%);
+  --prompt-info-bg: rgb(24 65 109 / 78%);
+  --prompt-warning-bg: rgb(92 72 17 / 82%);
+  --prompt-danger-bg: rgb(92 35 22 / 82%);
+
+  /* Code */
+  --language-border-color: #303846;
+  --highlight-bg-color: #0f1218;
+  --highlighter-rouge-color: #dce7f5;
+  --highlight-lineno-color: #8f99a8;
+  --inline-code-bg: rgb(255 255 255 / 8%);
+  --code-color: #e0e5ec;
+  --code-header-text-color: #a8b0bc;
+  --code-header-muted-color: #586273;
+  --code-header-icon-color: #8f99a8;
+  --filepath-text-color: #d8dde5;
+
+  /* Misc */
+  --kbd-wrap-color: #76808f;
+  --kbd-text-color: #edf0f4;
+  --kbd-bg-color: #242b35;
+  --btn-share-color: #aab2bd;
+  --btn-share-hover-color: #edf0f4;
+  --toc-popup-border-color: #354050;
+  --shimmer-bg: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0%) 0%,
+    rgb(113 126 148 / 24%) 50%,
+    rgb(255 255 255 / 0%) 100%
+  );
+}
+
+/* Explicit dark mode. */
+html[data-mode='dark'] {
+  @include modern-rl-dark-palette;
+}
+
+/* System dark mode: Chirpy clears the explicit data-mode attribute for system. */
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode='light']) {
+    @include modern-rl-dark-palette;
+  }
+}
+
+/* Improve syntax-highlight contrast without making code neon. */
+html[data-mode='dark'] .highlight,
+html[data-mode='dark'] .highlight .w {
+  color: #e1e6ed;
+  background-color: #0f1218;
+}
+
+html[data-mode='dark'] .highlight .c,
+html[data-mode='dark'] .highlight .ch,
+html[data-mode='dark'] .highlight .cd,
+html[data-mode='dark'] .highlight .cm,
+html[data-mode='dark'] .highlight .cpf,
+html[data-mode='dark'] .highlight .c1,
+html[data-mode='dark'] .highlight .cs {
+  color: #929cab;
+}
+
+html[data-mode='dark'] .highlight .o,
+html[data-mode='dark'] .highlight .ow,
+html[data-mode='dark'] .highlight .p,
+html[data-mode='dark'] .highlight .pi {
+  color: #dce2e9;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode='light']) .highlight,
+  html:not([data-mode='light']) .highlight .w {
+    color: #e1e6ed;
+    background-color: #0f1218;
+  }
+
+  html:not([data-mode='light']) .highlight .c,
+  html:not([data-mode='light']) .highlight .ch,
+  html:not([data-mode='light']) .highlight .cd,
+  html:not([data-mode='light']) .highlight .cm,
+  html:not([data-mode='light']) .highlight .cpf,
+  html:not([data-mode='light']) .highlight .c1,
+  html:not([data-mode='light']) .highlight .cs {
+    color: #929cab;
+  }
+
+  html:not([data-mode='light']) .highlight .o,
+  html:not([data-mode='light']) .highlight .ow,
+  html:not([data-mode='light']) .highlight .p,
+  html:not([data-mode='light']) .highlight .pi {
+    color: #dce2e9;
+  }
+}
+
 /* Keep dense technical tables readable on narrow screens. */
 @media (max-width: 576px) {
   article[data-toc] .content {
