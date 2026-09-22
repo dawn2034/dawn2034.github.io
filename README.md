@@ -36,6 +36,10 @@ DailyEpoch/YYYY-MM-DD.md
 
 无需手工维护首页、归档、分类、标签、搜索索引或 sitemap，它们由 Chirpy 自动生成。
 
+## 网站图标
+
+自定义“鸣响的杯子”图标源文件位于 `chirpy-src/assets/img/favicons/`，以 `favicon.svg` 为矢量原稿；PNG、ICO 与移动端图标使用同一图形。`chirpy-src/_includes/favicons.html` 负责引用和缓存版本。更换图标时应更新源目录及引用版本，由构建流程发布到根目录的 `assets/img/favicons/`，避免后续构建恢复主题默认图标。512 像素应用图标使用不透明方形背景，适配系统裁切。
+
 ## URL 约定
 
 日报永久链接保持：
