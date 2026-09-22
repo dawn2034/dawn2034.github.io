@@ -2,8 +2,6 @@
 
 本文件是每日 AI 技术简报的长期写作、检索、发布和定时任务执行规范。新日报在生成、整理和写入 `DailyEpoch/YYYY-MM-DD.md` 前，必须先读取本文件。
 
-> **X 规则版本：4.0**  
-> 本版从“按固定关键词寻找若干帖子”改为“先发现正在升温的技术主题，再寻找代表性原帖”。
 
 ## 每日内容目标
 
@@ -82,8 +80,6 @@ Phase 4 的 Event-driven Search 最多占总查询量的 **30%**。至少 70% �
 
 ## 4. Phase 0：动态新词与趋势发现
 
-这一阶段决定能否捕捉 `Loop Transformer` 这类不在固定关键词表中的新热点，因此是强制步骤。
-
 ### 4.1 不带具体论文名的广域搜索
 
 至少执行 6 个广域查询，覆盖：
@@ -103,7 +99,7 @@ open model architecture
 大模型 新架构
 推理模型 架构
 大模型 技术 热议
-Agent 工程 热议
+Agent Harness 工程 热议
 开源模型 架构
 ```
 
@@ -120,17 +116,7 @@ Agent 工程 热议
 - Hacker News、Reddit、研究团队博客和技术社区讨论；
 - 模型发布、复现、Benchmark 争议和工程事故。
 
-从这些来源中提取 **8—15 个候选主题短语**，例如：
-
-```text
-Looped Transformer
-latent recurrence
-speculative decoding
-context engineering
-agent harness
-KV cache compression
-```
-
+从这些来源中提取 **8—15 个候选主题短语**
 其中至少 5 个候选短语不能直接复制自当天已经入选的论文标题。
 
 ### 4.3 升温判定
@@ -151,40 +137,12 @@ KV cache compression
 
 每个候选主题必须建立一个 Alias Set，避免只搜一种拼写。
 
-例如当前的回归案例：
-
-```text
-主题：Loop Transformer
-
-核心别名：
-loop transformer
-looped transformer
-looping transformer
-recursive transformer
-recurrent-depth transformer
-weight-tied depth
-latent recurrence
-iterative latent computation
-
-相关项目／工作：
-LoopFormer
-Loopie
-Hyperloop Transformer
-MELT
-LT2
-LoopCoder
-Ouro
-Parallel Loop Transformer
-```
-
 搜索时至少使用：
 
 - 2 个核心别名；
 - 2 个相关项目名；
 - 1 个机制描述词；
 - 中英文可能存在的常用表达。
-
-不能因为 `loop transformer` 没返回结果，就认为 `looped transformer`、`Loopie` 或 `LoopFormer` 没有讨论。
 
 对于其他新主题，也必须自动生成同类 Alias Set。禁止仅依赖本文件中的静态关键词列表。
 
@@ -205,11 +163,8 @@ Parallel Loop Transformer
 示例：
 
 ```text
-site:x.com/status "looped transformer"
-site:x.com/status "Loopie" transformer
-site:x.com/status "LoopFormer"
-site:x.com/status "weight-tied depth" LLM
-site:x.com/status "latent recurrence" transformer
+site:x.com/status "Recursive Self-Improving"
+site:x.com/status "RSI"
 ```
 
 搜索结果优先保留包含 `/status/` 的原帖 URL。以下内容只能作为发现线索，不能计入合格原帖：
@@ -289,21 +244,7 @@ site:x.com/status "latent recurrence" transformer
 
 ### 9.1 先聚类，再选帖子
 
-将候选帖子按归一化主题聚类。例如：
-
-```text
-LoopFormer
-Loopie
-MELT
-LT2
-LoopCoder
-```
-
-可以归入更高层的：
-
-```text
-Looped Transformer / latent iterative computation
-```
+将候选帖子按归一化主题聚类。
 
 一个合格讨论簇原则上应有：
 
@@ -367,7 +308,7 @@ Views、Likes、Reposts、Replies 是排序信号，不是硬性准入门槛。�
 优先按讨论簇组织：
 
 ```markdown
-### 讨论簇 1：Looped Transformer 为什么重新升温
+### 讨论簇 1：xxx 为什么重新升温
 
 **趋势判断：** 过去 72 小时出现多位独立作者讨论；互动数据部分可见。
 
@@ -446,21 +387,6 @@ Views、Likes、Reposts、Replies 是排序信号，不是硬性准入门槛。�
 
 ---
 
-## 14. 当前回归测试：Looped Transformer
-
-为验证新规则真正能发现动态架构热点，**截至 2026-09-10 的每日 X 检索必须显式执行以下至少 5 个查询**：
-
-```text
-site:x.com/status "loop transformer"
-site:x.com/status "looped transformer"
-site:x.com/status "LoopFormer"
-site:x.com/status "Loopie" transformer
-site:x.com/status "latent recurrence" transformer
-site:x.com/status "Hyperloop Transformer"
-site:x.com/status "MELT" transformer
-site:x.com/status "LT2" transformer
-site:x.com/status "LoopCoder"
-```
 
 日报不要求强行收录该主题，但审计必须说明：
 
