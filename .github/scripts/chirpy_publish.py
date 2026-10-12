@@ -168,8 +168,8 @@ def publish(root: Path, site: Path) -> None:
                     build(checkout, artifact)
                     validate(checkout, artifact)
                     build_sha = parent
-                    run(['git', 'restore', '--source=HEAD', '--staged', '--worktree', '--', 'chirpy-src'], checkout)
-                    run(['git', 'clean', '-fd', '--', 'chirpy-src/_posts'], checkout)
+                    run(['git', 'restore', '--source=HEAD', '--staged', '--worktree', '--', '.'], checkout)
+                    run(['git', 'clean', '-fd', '--', 'chirpy-src/_posts', 'Gemfile.lock'], checkout)
                 # Keep all repository-owned sources. Never copy old Markdown back.
                 excludes = ['.git', '.git/', '.github/', 'chirpy-src/',
                             'DailyEpoch/*.md', 'Gemfile', 'Gemfile.lock', 'README.md']
