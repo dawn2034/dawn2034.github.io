@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <title>鸣响的杯子</title>
+  <rect width="128" height="128" rx="26" fill="#14263A"/>
+  <path d="M42.5 32Q64 13.5 85 32M49.5 41.5Q64 29 78 41.5" stroke="#ED9962" stroke-width="6" stroke-linecap="round"/>
+  <path fill="#F6F0E6" fill-rule="evenodd" d="M26 51H90V56.5H94.5C103.5 56.5 109 63 109 72C109 81.5 102 88 93 88H86.5C81.5 98 73 104 62.5 104H54.5C38.5 104 26 92 26 76V51ZM34 58.5V75C34 88 42.8 96 55.5 96H62.2C74.4 96 82 88 82 75V58.5H34ZM90 64V76Q90 78.5 89.5 80.5H93C98.5 80.5 101.5 76.8 101.5 72C101.5 67.2 99 64 94.5 64H90Z"/>
+</svg>
