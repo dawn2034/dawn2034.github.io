@@ -1,6 +1,6 @@
 # DailyEpoch 发布操作协议
 
-版本：2026-10-12。写作标准继续使用 `DailyEpoch/CONTENT_GUIDE.md`；本文件规定提交、发布和故障分类。不得通过降低内容标准解决写入故障。
+版本：2026-10-13。写作标准继续使用 `DailyEpoch/CONTENT_GUIDE.md`；本文件规定提交、发布和故障分类。不得通过降低内容标准解决写入故障。
 
 ## 授权与能力检查
 
@@ -35,3 +35,31 @@
 只有上述证据全部通过才写“已发布”。分别报告源码、trigger、构建、静态发布；记录实际 HTTP/工具错误、操作、分支、期望及实际 SHA。不得把 cancelled、permission denied、HTTP 409/422、工具未提供、GitHub 安全拒绝笼统称为“合并失败”。
 
 如本轮无法完成，仍提供完整正文和实际已保存的源码位置；不创建无内容恢复分支，不用替代端点绕过拒绝，不声称稍后会自动完成。本协议不保证未来执行环境的授权永不变化。
+
+## 2026-10-13 补充：具名调用与 PR 三态判定
+
+### 逐步调用与精确断点
+
+优先直接调用当前通过工具发现获得的 GitHub 具名动作。正文 blob、索引 blob、tree、commit、master ref、trigger 文件更新各自独立调用、独立检查返回；不要把它们和动态工具查找、重试逻辑全部包进一个通用代码执行调用。不得引用历史会话中不存在的 `ALL_TOOLS` 或 `tools` 变量。
+
+这不是更改或规避安全检查，而是让每个授权操作可单独验证和定位故障。任一安全/权限拒绝仍须停止。若返回来自执行环境且没有 GitHub HTTP 状态，只能记作执行环境阻断，不能捏造 GitHub 403/409。调用结果因网络超时而未知时，先只读确认是否已成功，不盲目重复写入。
+
+原稿先保存为唯一的 UTF-8 文件，计算 SHA-256 与 Git blob SHA。GitHub 返回的 blob SHA 必须与原文件一致，再进入提交阶段；重试不得通过摘要、截断或人工重新编写全文替代原稿。
+
+### `mergeable` 保留三态，不能强转布尔值
+
+GitHub 原始 PR API 的 `mergeable` 有 `true`、`false`、`null` 三种值。`null` 表示后台尚未算出结果，`mergeable_state: unknown` 同理；它不代表内容冲突。
+
+2026-10-13 本次检查中，简化 PR 工具曾返回 `mergeable: false`，随后原始 `GET /repos/dawn2034/dawn2034.github.io/pulls/7` 返回 `mergeable: null`、`mergeable_state: unknown`，且该 trigger 对应的 PR workflow 已成功。这些响应不能用来证明存在真实冲突，也不能据此回填历史失败根因。
+
+因此：简化工具显示不可合并时，先读取原始 PR 响应。原始值为 null/unknown，则等待后只读复核，不同步分支、不强推、不创建新 PR。只有原始 API 明确判定冲突且对比证据支持，才考虑按用户授权将 master 同步到触发分支；任何时候都不合并 PR #7。
+
+`compare_commits` 的 diverged/ahead/behind 只表示历史关系，不等于文件冲突。PR 返回的 base_sha 也不能代替读取 `master` 当前 ref 来确定源码 parent。
+
+参考：[GitHub Get a pull request：mergeable 三态](https://docs.github.com/en/rest/pulls/pulls#get-a-pull-request)。
+
+### 日期与阶段日志
+
+正常每日运行开始时取得真实时间并转换 Asia/Shanghai，一次性冻结 run_started_at 和 report_date；正文覆盖窗口另写，不能从 UTC 或上一期标题推算日期。补发已有原稿保持其用户指定日期，不将本期改名填补历史缺口。
+
+每轮保留本地审计 JSON，记录正文哈希、源码 commit、trigger commit、实际 workflow、静态验证、原始错误和最近七天的缺稿/缺发布日期。缺少归档不等于调度未运行，最近一次 last_run_time 也不能证明全部历史执行情况。无论某天是否有稿，都不得伪造逐日成功记录。
