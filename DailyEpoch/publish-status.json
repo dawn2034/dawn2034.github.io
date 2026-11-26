@@ -1,12 +1,12 @@
 {
   "status": "published",
-  "source_sha": "370f0a4228fc997b928e91c80c7a477040b825db",
-  "build_source_sha": "370f0a4228fc997b928e91c80c7a477040b825db",
-  "trigger_sha": "370f0a4228fc997b928e91c80c7a477040b825db",
-  "event": "schedule",
-  "run_id": "45793269903",
-  "run_url": "https://github.com/dawn2034/dawn2034.github.io/actions/runs/45793269903",
-  "published_at": "2026-11-26T09:35:16.187498+00:00",
+  "source_sha": "5ec67c119dd5967d6fc7f968fdda7608e4f14355",
+  "build_source_sha": "5ec67c119dd5967d6fc7f968fdda7608e4f14355",
+  "trigger_sha": "594bb76070431a94186ac479fc000aae6c988730",
+  "event": "pull_request",
+  "run_id": "45912022261",
+  "run_url": "https://github.com/dawn2034/dawn2034.github.io/actions/runs/45912022261",
+  "published_at": "2026-11-26T23:37:55.268330+00:00",
   "posts": {
     "2026-07-14": "029a8ee017a86041155f4df6fa101aefa5e4104e57db53f24045e86ceea66099",
     "2026-07-15": "0c6c52f60f829870ebf7d343b0fff1539562ed29763a0f457aa12334720f8aba",
@@ -140,6 +140,7 @@
     "2026-11-23": "f65edd3b6ac80d8131420fd30b3ff19596f75b2677e04873933983a5aec1f3e9",
     "2026-11-24": "582bb4a7878f0d8961d13067418ccd6129e8345b899ecea5c4ed74c2a63824e3",
     "2026-11-25": "2a9c27a3d9380f322031474aeb2166a09b2f3a0e3e23c735d721694a9fcb7c36",
-    "2026-11-26": "d44b1e8631469294dd2f5c72af8131f5aeef1fe128e1bf730b21982861f2b6c9"
+    "2026-11-26": "d44b1e8631469294dd2f5c72af8131f5aeef1fe128e1bf730b21982861f2b6c9",
+    "2026-11-27": "b63fc5d6123b5d96ab1afed920abc1bd7b55335832a17a46087ad99950dd9dc0"
   }
 }
